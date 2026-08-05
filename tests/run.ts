@@ -7,6 +7,7 @@ import {
     shouldAttachTargetChoir,
 } from '../src/api/requestScope.js';
 import { resolveEntityId } from '../src/types/api/entity.js';
+import { getAuthErrorMessage } from '../src/auth/authErrorMessages';
 
 interface TestCase {
     readonly name: string;
@@ -98,6 +99,29 @@ const testCases: TestCase[] = [
             assertEqual(resolveEntityId({ _id: 'legacy' }), 'legacy');
             assertEqual(resolveEntityId({ id: '  ', _id: ' legacy ' }), 'legacy');
             assertEqual(resolveEntityId({}), null);
+        },
+    },
+    {
+        name: 'auth errors map API codes to Spanish UI messages',
+        run: () => {
+            assertEqual(
+                getAuthErrorMessage('INVALID_CURRENT_PASSWORD', 'Fallback'),
+                'La contraseña actual no es correcta.',
+            );
+            assertEqual(
+                getAuthErrorMessage('PASSWORD_CHANGE_REQUIRED', 'Fallback'),
+                'Debes cambiar la contraseña temporal antes de continuar.',
+            );
+        },
+    },
+    {
+        name: 'auth errors preserve the provided fallback for unmapped codes',
+        run: () => {
+            assertEqual(
+                getAuthErrorMessage('NEW_API_CODE', 'Mensaje seguro'),
+                'Mensaje seguro',
+            );
+            assertEqual(getAuthErrorMessage(undefined, 'Mensaje seguro'), 'Mensaje seguro');
         },
     },
 ];

@@ -14,7 +14,11 @@ export const APP_STORAGE_KEYS = Object.freeze({
     targetChoirId: `${APP_STORAGE_PREFIX}platform:target-choir-id`,
 });
 
-const LEGACY_AUTH_KEYS = ['token', 'refreshToken', 'role'] as const;
+export const LEGACY_AUTH_KEYS = Object.freeze([
+    'token',
+    'refreshToken',
+    'role',
+]);
 
 const getBrowserStorage = (): Storage | null => {
     if (typeof window === 'undefined') {
@@ -38,6 +42,16 @@ export const writeStorageValue = (key: string, value: string): void => {
 
 export const removeStorageValue = (key: string): void => {
     getBrowserStorage()?.removeItem(key);
+};
+
+export const removeStorageValues = (keys: readonly string[]): void => {
+    const storage = getBrowserStorage();
+
+    if (!storage) {
+        return;
+    }
+
+    keys.forEach((key) => storage.removeItem(key));
 };
 
 export const clearChoirWebStorage = (): void => {

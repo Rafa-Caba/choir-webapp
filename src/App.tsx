@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import { Routes, Route } from 'react-router-dom';
 
 // Layouts
@@ -6,8 +8,8 @@ import AdminLayout from './layouts/admin/AdminLayout';
 
 // Context & Styles
 import { PublicGlobalProvider } from './context/PublicGlobalContext';
-import { AuthProvider } from './context/AuthContext';
 import { PrivateRoute } from './components/PrivateRoute';
+import { PasswordChangeRoute } from './components/auth/PasswordChangeRoute';
 import './assets/styles/global.scss';
 
 // --- Public Pages (English Filenames) ---
@@ -19,7 +21,7 @@ import { AboutUs } from './pages/public/AboutUs';
 
 // --- Auth Pages (English Filenames) ---
 import { Login } from './pages/auth/Login';
-import { Register } from './pages/auth/Register';
+import { ChangePassword } from './pages/auth/ChangePassword';
 
 // --- Admin Pages (English Filenames) ---
 import { Dashboard } from './pages/admin/Dashboard';
@@ -124,11 +126,9 @@ function App() {
                 <Route
                     path="/admin"
                     element={
-                        <AuthProvider>
-                            <PrivateRoute>
-                                <AdminLayout />
-                            </PrivateRoute>
-                        </AuthProvider>
+                        <PrivateRoute>
+                            <AdminLayout />
+                        </PrivateRoute>
                     }
                 >
                     <Route index element={<Dashboard />} />
@@ -199,21 +199,14 @@ function App() {
                     <Route path="public-test" element={<PublicTestDashboard />} />
                 </Route>
 
-                {/* --- Auth Section (Wrapped in Provider) --- */}
+                {/* --- Authentication --- */}
+                <Route path="/auth/login" element={<Login />} />
                 <Route
-                    path="/auth/login"
+                    path="/auth/change-password"
                     element={
-                        <AuthProvider>
-                            <Login />
-                        </AuthProvider>
-                    }
-                />
-                <Route
-                    path="/auth/register"
-                    element={
-                        <AuthProvider>
-                            <Register />
-                        </AuthProvider>
+                        <PasswordChangeRoute>
+                            <ChangePassword />
+                        </PasswordChangeRoute>
                     }
                 />
             </Routes>

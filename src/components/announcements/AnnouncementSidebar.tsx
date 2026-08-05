@@ -33,7 +33,7 @@ import { useAuth } from '../../context/AuthContext';
 export const AnnouncementSidebar = () => {
     const navigate = useNavigate();
 
-    const { canEdit } = useAuth();
+    const { canManageContent } = useAuth();
     const { announcements, fetchAnnouncements, loading } = useAnnouncementStore();
     const { images } = useGalleryStore();
 
@@ -379,7 +379,7 @@ export const AnnouncementSidebar = () => {
                         Cerrar
                     </Button>
 
-                    {canEdit && (
+                    {canManageContent && (
                         <Button
                             variant="contained"
                             endIcon={<OpenInNewRoundedIcon />}

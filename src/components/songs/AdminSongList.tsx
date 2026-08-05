@@ -194,7 +194,7 @@ const SongButtonList = ({ songList }: SongButtonListProps) => {
 export const AdminSongList = () => {
     const { songs, loading, fetchSongs } = useSongStore();
     const { types, fetchTypes } = useSongTypeStore();
-    const { canEdit } = useAuth();
+    const { canManageContent } = useAuth();
 
     useEffect(() => {
         const loadData = async () => {
@@ -241,7 +241,7 @@ export const AdminSongList = () => {
                 subtitle="Administra y consulta los cantos del coro."
                 icon={<QueueMusicRoundedIcon />}
                 action={
-                    canEdit ? (
+                    canManageContent ? (
                         <Button
                             component={RouterLink}
                             to="/admin/songs/new"

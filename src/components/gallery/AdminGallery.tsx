@@ -137,7 +137,7 @@ export const AdminGallery = () => {
     const [searchParams] = useSearchParams();
 
     const [loadingLocal, setLoadingLocal] = useState(true);
-    const { user, canEdit } = useAuth();
+    const { user, canManageContent } = useAuth();
 
     const {
         images,
@@ -244,7 +244,7 @@ export const AdminGallery = () => {
                 subtitle="Administra imágenes, logos, menús laterales y medios públicos."
                 icon={<CollectionsRoundedIcon />}
                 action={
-                    canEdit ? (
+                    canManageContent ? (
                         <Button
                             component={RouterLink}
                             to="/admin/gallery/new"
@@ -418,7 +418,7 @@ export const AdminGallery = () => {
                                             {image.title}
                                         </Typography>
 
-                                        {canEdit && (
+                                        {canManageContent && (
                                             <>
                                                 <Button
                                                     variant="outlined"

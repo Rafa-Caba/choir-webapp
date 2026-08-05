@@ -3,6 +3,8 @@
 import type { Theme } from './theme';
 
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'EDITOR' | 'USER' | 'VIEWER';
+export type AuthStatus = 'checking' | 'authenticated' | 'unauthenticated';
+export type AccessMode = 'tenant' | 'platform';
 
 interface UserIdentity {
     readonly id: string;
@@ -19,7 +21,6 @@ export interface AuthenticatedChoir {
     readonly isActive: boolean;
 }
 
-/** Exact user shape returned inside auth session responses. */
 export interface AuthenticatedUser extends UserIdentity {
     readonly choirId: string | null;
     readonly preferredChoirId: string | null;
@@ -28,7 +29,6 @@ export interface AuthenticatedUser extends UserIdentity {
     readonly sessionVersion: number;
 }
 
-/** Exact user shape returned by protected user profile and user administration endpoints. */
 export interface UserProfile extends UserIdentity {
     readonly imageUrl: string;
     readonly instrumentId: string | null;
@@ -45,10 +45,6 @@ export interface UserProfile extends UserIdentity {
     readonly updatedAt: string | null;
 }
 
-/**
- * Transitional component model retained until the Phase 3 auth store and Phase 11
- * user services consume AuthenticatedUser and UserProfile independently.
- */
 export interface User extends AuthenticatedUser {
     readonly imageUrl?: string;
     readonly imagePublicId?: string;
@@ -113,32 +109,4 @@ export interface UpdateProfileInput {
     readonly voice?: boolean;
     readonly bio?: string;
     readonly preferredChoirId?: string | null;
-}
-
-export type AuthStatus = 'checking' | 'authenticated' | 'unauthenticated';
-export type AccessMode = 'tenant' | 'platform';
-
-/** Transitional alias retained until AuthContext is replaced in Phase 3. */
-export interface LoginPayload {
-    readonly username: string;
-    readonly password: string;
-    readonly choirCode?: string;
-}
-
-/** Transitional contract retained only until public registration is removed in Phase 4. */
-export interface RegisterPayload {
-    readonly name: string;
-    readonly username: string;
-    readonly email: string;
-    readonly password: string;
-    readonly instrument?: string;
-    readonly choirCode?: string;
-}
-
-/** Transitional response retained until the Phase 3 auth store migration. */
-export interface AuthResponse extends AuthSessionResponse {
-    readonly user: User;
-    readonly choirId?: string;
-    readonly choirCode?: string;
-    readonly message?: string;
 }

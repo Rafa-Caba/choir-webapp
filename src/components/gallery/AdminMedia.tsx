@@ -31,7 +31,7 @@ import type { GalleryImage } from '../../types/gallery';
 export const AdminMedia = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { canEdit } = useAuth();
+    const { canManageContent } = useAuth();
 
     const { getImage, deleteImage, loading } = useGalleryStore();
 
@@ -429,7 +429,7 @@ export const AdminMedia = () => {
                         {downloading ? 'Descargando...' : 'Descargar'}
                     </Button>
 
-                    {canEdit && (
+                    {canManageContent && (
                         <>
                             <Button
                                 component={RouterLink}

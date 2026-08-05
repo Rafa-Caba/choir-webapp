@@ -1,0 +1,25 @@
+// tsconfig.tests.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "rootDir": ".",
+    "outDir": ".test-dist",
+    "noEmitOnError": true,
+    "types": []
+  },
+  "include": [
+    "tests/**/*.ts",
+    "src/api/requestScope.ts",
+    "src/auth/authErrorMessages.ts",
+    "src/auth/permissions.ts",
+    "src/types/api/entity.ts"
+  ]
+}

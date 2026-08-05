@@ -1,11 +1,21 @@
-// src/components/layout/AdminNav.tsx (or wherever it is)
+// src/components/components-admin/AdminNav.tsx
 import { Link, useLocation } from 'react-router-dom';
 import { Navbar, Nav, Container } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
 
 export const AdminNav = () => {
     const location = useLocation();
-    const { user, isAdmin, canEdit, isSuperAdmin } = useAuth();
+    const {
+        user,
+        isAdmin,
+        isSuperAdmin,
+        canManageContent,
+        canManageInstruments,
+        canManageMembers,
+        canManageSettings,
+        canManageSongTypes,
+        canManageThemes,
+    } = useAuth();
     const choirCode = user?.choirCode || 'eroc1';
 
     if (!user) return null;
@@ -117,38 +127,47 @@ export const AdminNav = () => {
                             </>
                         )}
 
-                        {canEdit && (
+                        {canManageInstruments && (
+                            <Nav.Item>
+                                <Nav.Link
+                                    as={Link}
+                                    to="/admin/instruments"
+                                    active={isActive('/admin/instruments')}
+                                    className="admin-nav-link"
+                                >
+                                    Instrumentos
+                                </Nav.Link>
+                            </Nav.Item>
+                        )}
+
+                        {canManageSongTypes && (
+                            <Nav.Item>
+                                <Nav.Link
+                                    as={Link}
+                                    to="/admin/song-types"
+                                    active={isActive('/admin/song-types')}
+                                    className="admin-nav-link"
+                                >
+                                    Tipos de Cantos
+                                </Nav.Link>
+                            </Nav.Item>
+                        )}
+
+                        {canManageMembers && (
+                            <Nav.Item>
+                                <Nav.Link
+                                    as={Link}
+                                    to="/admin/members"
+                                    active={isActive('/admin/members')}
+                                    className="admin-nav-link"
+                                >
+                                    Miembros
+                                </Nav.Link>
+                            </Nav.Item>
+                        )}
+
+                        {canManageContent && (
                             <>
-                                <Nav.Item>
-                                    <Nav.Link
-                                        as={Link}
-                                        to="/admin/instruments"
-                                        active={isActive('/admin/instruments')}
-                                        className="admin-nav-link"
-                                    >
-                                        Instrumentos
-                                    </Nav.Link>
-                                </Nav.Item>
-                                <Nav.Item>
-                                    <Nav.Link
-                                        as={Link}
-                                        to="/admin/song-types"
-                                        active={isActive('/admin/song-types')}
-                                        className="admin-nav-link"
-                                    >
-                                        Tipos de Cantos
-                                    </Nav.Link>
-                                </Nav.Item>
-                                <Nav.Item>
-                                    <Nav.Link
-                                        as={Link}
-                                        to="/admin/members"
-                                        active={isActive('/admin/members')}
-                                        className="admin-nav-link"
-                                    >
-                                        Miembros
-                                    </Nav.Link>
-                                </Nav.Item>
                                 <Nav.Item>
                                     <Nav.Link
                                         as={Link}
@@ -169,27 +188,33 @@ export const AdminNav = () => {
                                         Admin Blogs
                                     </Nav.Link>
                                 </Nav.Item>
-                                <Nav.Item>
-                                    <Nav.Link
-                                        as={Link}
-                                        to="/admin/settings"
-                                        active={isActive('/admin/settings')}
-                                        className="admin-nav-link"
-                                    >
-                                        Ajustes de Página
-                                    </Nav.Link>
-                                </Nav.Item>
-                                <Nav.Item>
-                                    <Nav.Link
-                                        as={Link}
-                                        to="/admin/themes"
-                                        active={isActive('/admin/themes')}
-                                        className="admin-nav-link"
-                                    >
-                                        Temas de Color
-                                    </Nav.Link>
-                                </Nav.Item>
                             </>
+                        )}
+
+                        {canManageSettings && (
+                            <Nav.Item>
+                                <Nav.Link
+                                    as={Link}
+                                    to="/admin/settings"
+                                    active={isActive('/admin/settings')}
+                                    className="admin-nav-link"
+                                >
+                                    Ajustes de Página
+                                </Nav.Link>
+                            </Nav.Item>
+                        )}
+
+                        {canManageThemes && (
+                            <Nav.Item>
+                                <Nav.Link
+                                    as={Link}
+                                    to="/admin/themes"
+                                    active={isActive('/admin/themes')}
+                                    className="admin-nav-link"
+                                >
+                                    Temas de Color
+                                </Nav.Link>
+                            </Nav.Item>
                         )}
 
                         <Nav.Item>

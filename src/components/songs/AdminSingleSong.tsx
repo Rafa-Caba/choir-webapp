@@ -29,7 +29,7 @@ import { parseText } from '../../utils/handleTextTipTap';
 export const AdminSingleSong = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { canEdit } = useAuth();
+    const { canManageContent } = useAuth();
 
     const { getSong, removeSong } = useSongStore();
     const [song, setSong] = useState<Song | null>(null);
@@ -364,7 +364,7 @@ export const AdminSingleSong = () => {
                         gap: 1,
                     }}
                 >
-                    {canEdit && (
+                    {canManageContent && (
                         <>
                             <Button
                                 variant="outlined"

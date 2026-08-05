@@ -1,25 +1,51 @@
+// src/services/auth.ts
+
 import api from '../api/axios';
 import type {
-    AuthResponse,
-    LoginPayload,
-    RegisterPayload,
-    User,
+    AuthSessionResponse,
+    ChangePasswordPayload,
+    CurrentSessionResponse,
+    LogoutPayload,
+    PlatformLoginPayload,
+    TenantLoginPayload,
+    UserProfile,
 } from '../types/auth';
+import type { ApiMessageResponse, UserResponse } from '../types/api/http';
 
-// LOGIN
-export const loginUser = async (payload: LoginPayload): Promise<AuthResponse> => {
-    const { data } = await api.post<AuthResponse>('/auth/login', payload);
+export const loginTenantUser = async (
+    payload: TenantLoginPayload,
+): Promise<AuthSessionResponse> => {
+    const { data } = await api.post<AuthSessionResponse>('/auth/login', payload);
     return data;
 };
 
-// REGISTER
-export const registerUser = async (payload: RegisterPayload): Promise<AuthResponse> => {
-    const { data } = await api.post<AuthResponse>('/auth/register', payload);
+export const loginPlatformUser = async (
+    payload: PlatformLoginPayload,
+): Promise<AuthSessionResponse> => {
+    const { data } = await api.post<AuthSessionResponse>('/auth/platform-login', payload);
     return data;
 };
 
-// PROFILE
-export const getUserProfile = async (): Promise<User> => {
-    const { data } = await api.get<User>('/users/me');
+export const getCurrentSession = async (): Promise<CurrentSessionResponse> => {
+    const { data } = await api.get<CurrentSessionResponse>('/auth/me');
     return data;
+};
+
+export const changeAuthenticatedPassword = async (
+    payload: ChangePasswordPayload,
+): Promise<AuthSessionResponse> => {
+    const { data } = await api.post<AuthSessionResponse>('/auth/change-password', payload);
+    return data;
+};
+
+export const logoutUserSession = async (
+    payload: LogoutPayload,
+): Promise<ApiMessageResponse> => {
+    const { data } = await api.post<ApiMessageResponse>('/auth/logout', payload);
+    return data;
+};
+
+export const getUserProfile = async (): Promise<UserProfile> => {
+    const { data } = await api.get<UserResponse>('/users/me');
+    return data.user;
 };

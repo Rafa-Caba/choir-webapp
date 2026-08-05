@@ -1,15 +1,31 @@
 // src/storage/sessionStorage.ts
 
-import type { AuthSessionResponse } from '../types/auth';
+import type { AccessMode, AuthSessionResponse, User } from '../types/auth';
 import {
     APP_STORAGE_KEYS,
-    clearChoirWebStorage,
+    LEGACY_AUTH_KEYS,
     readLegacyAccessToken,
     readLegacyRefreshToken,
     readStorageValue,
     removeStorageValue,
+    removeStorageValues,
     writeStorageValue,
 } from './appStorage';
+
+const SESSION_STORAGE_KEYS = Object.freeze([
+    APP_STORAGE_KEYS.accessToken,
+    APP_STORAGE_KEYS.refreshToken,
+    APP_STORAGE_KEYS.sessionId,
+    APP_STORAGE_KEYS.user,
+    APP_STORAGE_KEYS.choir,
+    APP_STORAGE_KEYS.requiresPasswordChange,
+    APP_STORAGE_KEYS.accessMode,
+    APP_STORAGE_KEYS.targetChoirId,
+]);
+
+const normalizeChoirCode = (choirCode: string): string => (
+    choirCode.trim().toLowerCase()
+);
 
 export const readAccessToken = (): string | null => (
     readStorageValue(APP_STORAGE_KEYS.accessToken) ?? readLegacyAccessToken()
@@ -18,6 +34,39 @@ export const readAccessToken = (): string | null => (
 export const readRefreshToken = (): string | null => (
     readStorageValue(APP_STORAGE_KEYS.refreshToken) ?? readLegacyRefreshToken()
 );
+
+export const readSessionId = (): string | null => (
+    readStorageValue(APP_STORAGE_KEYS.sessionId)
+);
+
+export const readAccessMode = (): AccessMode | null => {
+    const storedMode = readStorageValue(APP_STORAGE_KEYS.accessMode);
+
+    if (storedMode === 'tenant' || storedMode === 'platform') {
+        return storedMode;
+    }
+
+    return null;
+};
+
+export const writeAccessMode = (accessMode: AccessMode): void => {
+    writeStorageValue(APP_STORAGE_KEYS.accessMode, accessMode);
+};
+
+export const readLastChoirCode = (): string => (
+    readStorageValue(APP_STORAGE_KEYS.lastChoirCode) ?? ''
+);
+
+export const writeLastChoirCode = (choirCode: string): void => {
+    const normalizedChoirCode = normalizeChoirCode(choirCode);
+
+    if (!normalizedChoirCode) {
+        removeStorageValue(APP_STORAGE_KEYS.lastChoirCode);
+        return;
+    }
+
+    writeStorageValue(APP_STORAGE_KEYS.lastChoirCode, normalizedChoirCode);
+};
 
 export const readTargetChoirId = (): string | null => (
     readStorageValue(APP_STORAGE_KEYS.targetChoirId)
@@ -32,6 +81,10 @@ export const writeTargetChoirId = (choirId: string | null): void => {
     }
 
     writeStorageValue(APP_STORAGE_KEYS.targetChoirId, normalizedChoirId);
+};
+
+export const persistSessionUser = (user: User): void => {
+    writeStorageValue(APP_STORAGE_KEYS.user, JSON.stringify(user));
 };
 
 export const persistAuthSession = (session: AuthSessionResponse): void => {
@@ -51,5 +104,6 @@ export const persistAuthSession = (session: AuthSessionResponse): void => {
 };
 
 export const clearAuthSession = (): void => {
-    clearChoirWebStorage();
+    removeStorageValues(SESSION_STORAGE_KEYS);
+    removeStorageValues(LEGACY_AUTH_KEYS);
 };

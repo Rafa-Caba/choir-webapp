@@ -29,6 +29,7 @@ import { ChatDirectory } from './ChatDirectory';
 
 import { scrollChatToBottom } from '../../utils';
 import type { ChatMessage } from '../../types/chat';
+import type { JsonObject, JsonValue } from '../../types/json';
 
 type ChatAttachmentType = 'image' | 'file' | 'audio' | 'video';
 
@@ -63,19 +64,33 @@ const getFileTypeFromName = (fileName: string): ChatAttachmentType => {
     return 'file';
 };
 
+const isJsonArray = (value: JsonValue | undefined): value is JsonValue[] => (
+    Array.isArray(value)
+);
+
+const isJsonObject = (value: JsonValue): value is JsonObject => (
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+);
+
 const getReplyPreviewText = (message: ChatMessage | null): string => {
     if (!message) {
         return '';
     }
 
-    if (typeof message.content === 'string') {
-        return message.content;
+    const firstBlock = message.content.content[0];
+    const nestedContent = firstBlock?.content;
+
+    if (!isJsonArray(nestedContent)) {
+        return '';
     }
 
-    const firstBlock = message.content.content?.[0];
-    const firstChild = firstBlock?.content?.[0];
+    const firstChild = nestedContent[0];
 
-    return firstChild?.text || '';
+    if (!firstChild || !isJsonObject(firstChild)) {
+        return '';
+    }
+
+    return typeof firstChild.text === 'string' ? firstChild.text : '';
 };
 
 export const AdminChatGroup = () => {

@@ -119,7 +119,18 @@ const AdminLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { user, loading, isAdmin, canEdit, isSuperAdmin } = useAuth();
+    const {
+        user,
+        loading,
+        isAdmin,
+        isSuperAdmin,
+        canManageContent,
+        canManageInstruments,
+        canManageMembers,
+        canManageSettings,
+        canManageSongTypes,
+        canManageThemes,
+    } = useAuth();
     const { settings, fetchSettings } = useAdminSettingsStore();
     const { images, fetchGallery } = useGalleryStore();
 
@@ -235,49 +246,49 @@ const AdminLayout = () => {
                 label: 'Instrumentos',
                 path: '/admin/instruments',
                 icon: <BuildRoundedIcon />,
-                visible: canEdit,
+                visible: canManageInstruments,
                 showInBottomNav: false,
             },
             {
                 label: 'Tipos de Cantos',
                 path: '/admin/song-types',
                 icon: <CategoryRoundedIcon />,
-                visible: canEdit,
+                visible: canManageSongTypes,
                 showInBottomNav: false,
             },
             {
                 label: 'Miembros',
                 path: '/admin/members',
                 icon: <GroupsRoundedIcon />,
-                visible: canEdit,
+                visible: canManageMembers,
                 showInBottomNav: false,
             },
             {
                 label: 'Admin Avisos',
                 path: '/admin/announcements',
                 icon: <CampaignRoundedIcon />,
-                visible: canEdit,
+                visible: canManageContent,
                 showInBottomNav: false,
             },
             {
                 label: 'Admin Blogs',
                 path: '/admin/blog',
                 icon: <MusicNoteRoundedIcon />,
-                visible: canEdit,
+                visible: canManageContent,
                 showInBottomNav: false,
             },
             {
                 label: 'Ajustes de Página',
                 path: '/admin/settings',
                 icon: <SettingsRoundedIcon />,
-                visible: canEdit,
+                visible: canManageSettings,
                 showInBottomNav: false,
             },
             {
                 label: 'Temas de Color',
                 path: '/admin/themes',
                 icon: <PaletteRoundedIcon />,
-                visible: canEdit,
+                visible: canManageThemes,
                 showInBottomNav: false,
             },
             {
@@ -288,7 +299,17 @@ const AdminLayout = () => {
                 showInBottomNav: false,
             },
         ];
-    }, [canEdit, choirCode, isAdmin, isSuperAdmin]);
+    }, [
+        canManageContent,
+        canManageInstruments,
+        canManageMembers,
+        canManageSettings,
+        canManageSongTypes,
+        canManageThemes,
+        choirCode,
+        isAdmin,
+        isSuperAdmin,
+    ]);
 
     const visibleNavigationItems = navigationItems.filter((item) => item.visible);
 
