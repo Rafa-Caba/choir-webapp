@@ -1,3 +1,7 @@
+// src/types/chat.ts
+
+import type { TipTapContent } from './annoucement';
+
 export interface ChatUserSummary {
     id: string;
     name: string;
@@ -22,31 +26,28 @@ export interface ReplyPreview {
 export interface ChatMessage {
     id: string;
     choirId?: string | null;
-
     author: ChatUserSummary;
-    content: any;
+    content: TipTapContent;
     type: MessageType;
-
     fileUrl?: string;
     filename?: string;
     imageUrl?: string;
     audioUrl?: string;
     imagePublicId?: string;
-
+    mediaAssetId?: string;
     reactions: MessageReaction[];
     replyTo?: ReplyPreview | null;
-
     createdAt: string;
     updatedAt?: string;
 }
 
 export interface NewMessagePayload {
-    username: string;
-    content: any;
+    content: TipTapContent;
     type: MessageType;
     fileUrl?: string;
     filename?: string;
     imageUrl?: string;
     audioUrl?: string;
+    mediaAssetId?: string;
     replyToId?: string;
 }

@@ -1,73 +1,138 @@
-import axios from 'axios';
+// src/api/axios.ts
 
-// Create the main instance
+import axios, {
+    type AxiosError,
+    type InternalAxiosRequestConfig,
+} from 'axios';
+import ENV from '../config/env';
+import type { AuthSessionResponse } from '../types/auth';
+import type { ApiErrorResponse } from '../types/api/http';
+import { authBridge } from './authTokenBridge';
+import { tenantContextBridge } from './tenantContextBridge';
+import { normalizeApiRequestPath, shouldAttachTargetChoir } from './requestScope';
+
+const TERMINAL_SESSION_CODES = new Set([
+    'AUTHENTICATED_USER_NOT_FOUND',
+    'SESSION_REVOKED',
+    'USER_INACTIVE',
+    'CHOIR_INACTIVE',
+]);
+
+const AUTH_ROUTES_WITHOUT_REFRESH = new Set([
+    '/auth/login',
+    '/auth/platform-login',
+    '/auth/bootstrap',
+    '/auth/refresh',
+    '/auth/logout',
+]);
+
+const retriedRequests = new WeakSet<InternalAxiosRequestConfig>();
+let refreshPromise: Promise<AuthSessionResponse> | null = null;
+
 const api = axios.create({
-    baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:10000') + '/api',
+    baseURL: ENV.API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 10000
+    timeout: ENV.API_REQUEST_TIMEOUT_MS,
+    withCredentials: false,
 });
 
 export const publicApi = axios.create({
-    baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:10000') + '/api',
+    baseURL: ENV.API_BASE_URL,
     headers: {
-        'Content-Type': 'application/json'
-    }
+        'Content-Type': 'application/json',
+    },
+    timeout: ENV.API_REQUEST_TIMEOUT_MS,
+    withCredentials: false,
 });
 
-// 1. REQUEST INTERCEPTOR (Always define this first)
+const refreshSession = async (): Promise<AuthSessionResponse> => {
+    const refreshToken = authBridge.getRefreshToken();
+
+    if (!refreshToken) {
+        throw new Error('No refresh token is available');
+    }
+
+    const response = await publicApi.post<AuthSessionResponse>('/auth/refresh', {
+        refreshToken,
+    });
+
+    await authBridge.applySession(response.data);
+    return response.data;
+};
+
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        const accessToken = authBridge.getAccessToken();
+        const targetChoirId = tenantContextBridge.getTargetChoirId()?.trim() || null;
+
+        if (accessToken) {
+            config.headers.Authorization = `Bearer ${accessToken}`;
         }
+
+        config.headers.delete('x-target-choir-id');
+
+        if (targetChoirId && shouldAttachTargetChoir(config.url, targetChoirId)) {
+            config.headers.set('x-target-choir-id', targetChoirId);
+        }
+
         return config;
     },
-    (error) => Promise.reject(error)
+    (error: AxiosError<ApiErrorResponse>) => Promise.reject(error),
 );
 
-// 2. RESPONSE INTERCEPTOR
 api.interceptors.response.use(
     (response) => response,
-    async (error) => {
+    async (error: AxiosError<ApiErrorResponse>) => {
         const originalRequest = error.config;
+        const errorCode = error.response?.data?.code;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-
-            try {
-                const refreshToken = localStorage.getItem('refreshToken');
-                if (!refreshToken) throw new Error('No refresh token available');
-
-                const { data } = await publicApi.post('/auth/refresh-token', {
-                    refreshToken
-                });
-
-                const newAccessToken = data.accessToken;
-
-                localStorage.setItem('token', newAccessToken);
-
-                api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-                originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-
-                return api(originalRequest);
-
-            } catch (refreshError) {
-                console.warn('Session expired. Logging out...');
-                localStorage.clear();
-
-                if (window.location.pathname !== '/auth/login') {
-                    window.location.href = '/auth/login';
-                }
-
-                return Promise.reject(refreshError);
-            }
+        if (errorCode && TERMINAL_SESSION_CODES.has(errorCode)) {
+            await authBridge.expireSession();
+            return Promise.reject(error);
         }
 
-        return Promise.reject(error);
-    }
+        const requestPath = normalizeApiRequestPath(originalRequest?.url);
+        const refreshToken = authBridge.getRefreshToken();
+        const refreshIsAllowed = !AUTH_ROUTES_WITHOUT_REFRESH.has(requestPath);
+
+        if (!originalRequest || error.response?.status !== 401 || !refreshIsAllowed) {
+            return Promise.reject(error);
+        }
+
+        if (retriedRequests.has(originalRequest) || !refreshToken) {
+            await authBridge.expireSession();
+            return Promise.reject(error);
+        }
+
+        retriedRequests.add(originalRequest);
+
+        try {
+            refreshPromise ??= refreshSession().finally(() => {
+                refreshPromise = null;
+            });
+
+            const session = await refreshPromise;
+            originalRequest.headers.set('Authorization', `Bearer ${session.accessToken}`);
+            return api(originalRequest);
+        } catch (refreshError) {
+            const refreshStatus = axios.isAxiosError(refreshError)
+                ? refreshError.response?.status
+                : undefined;
+            const refreshWasRejected = refreshStatus === 400 ||
+                refreshStatus === 401 ||
+                refreshStatus === 403;
+
+            if (refreshWasRejected) {
+                await authBridge.expireSession();
+            }
+
+            return Promise.reject(refreshError);
+        }
+    },
 );
 
 export default api;
+export const API_BASE_URL = ENV.API_BASE_URL;
+export const API_REQUEST_TIMEOUT_MS = ENV.API_REQUEST_TIMEOUT_MS;

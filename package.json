@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -b --pretty false",
+    "test": "node -e \"import('node:fs').then(({ rmSync }) => rmSync('.test-dist', { recursive: true, force: true }))\" && tsc -p tsconfig.tests.json && node .test-dist/tests/run.js",
+    "verify:qa": "npm run typecheck && npm run lint && npm run build && npm test"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

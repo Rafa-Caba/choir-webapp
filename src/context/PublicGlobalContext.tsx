@@ -1,12 +1,11 @@
 import { createContext, useContext, useEffect } from 'react';
-import {
-    useGalleryStore,
-    useSongStore,
-    useSettingsStore,
-    useMemberStore,
-    useThemeStore,
-    usePublicInstrumentsStore
-} from '../store/public';
+import { useGalleryStore } from '../store/public/useGalleryStore';
+import { useSongStore } from '../store/public/useSongStore';
+import { useSettingsStore } from '../store/public/useSettingsStore';
+import { useMemberStore } from '../store/public/useMemberStore';
+import { useThemeStore } from '../store/public/useThemeStore';
+import { usePublicInstrumentsStore } from '../store/public/usePublicInstrumentsStore';
+
 
 interface Props {
     children: React.ReactNode;

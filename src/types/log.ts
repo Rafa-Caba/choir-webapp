@@ -1,21 +1,34 @@
-import type { User } from './auth';
+// src/types/log.ts
+
+import type { User, UserRole } from './auth';
+import type { JsonValue } from './json';
+
+export interface LogUserSummary {
+    readonly id: string;
+    readonly name: string;
+    readonly username: string;
+    readonly role: UserRole;
+}
+
+export interface LogChanges {
+    readonly before?: JsonValue;
+    readonly after?: JsonValue;
+    readonly new?: JsonValue;
+    readonly deleted?: JsonValue;
+    readonly updated?: JsonValue;
+    readonly sessionsRevoked?: boolean;
+}
 
 export interface Log {
     id: string;
     choirId: string;
-
-    user: User | { id: string; name: string; username: string; role: string };
+    user: User | LogUserSummary;
     collectionName: string;
     action: 'create' | 'update' | 'delete' | 'add_reaction' | 'remove_reaction';
+    operation?: string;
     referenceId: string;
     description?: string;
-    changes?: {
-        before?: any;
-        after?: any;
-        new?: any;
-        deleted?: any;
-        updated?: any;
-    };
+    changes?: LogChanges;
     createdAt: string;
 }
 

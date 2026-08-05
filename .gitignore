@@ -1,3 +1,5 @@
+# File: .gitignore
+
 # Logs
 logs
 *.log
@@ -41,3 +43,4 @@ render.yaml
 
 # Misc
 *.log
+.test-dist/

@@ -19,14 +19,13 @@ import ImageRoundedIcon from '@mui/icons-material/ImageRounded';
 import MusicNoteRoundedIcon from '@mui/icons-material/MusicNoteRounded';
 import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import { useSongStore } from '../../../store/public/useSongStore';
+import { useGalleryStore } from '../../../store/public/useGalleryStore';
+import { useSettingsStore } from '../../../store/public/useSettingsStore';
+import { useMemberStore } from '../../../store/public/useMemberStore';
+import { useThemeStore } from '../../../store/public/useThemeStore';
 
-import {
-    useGalleryStore,
-    useSongStore,
-    useSettingsStore,
-    useMemberStore,
-    useThemeStore,
-} from '../../../store/public';
+
 
 interface SectionHeaderProps {
     title: string;

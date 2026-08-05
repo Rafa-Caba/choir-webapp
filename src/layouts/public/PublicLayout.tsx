@@ -35,8 +35,9 @@ import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import MusicNoteRoundedIcon from '@mui/icons-material/MusicNoteRounded';
 
 import { Footer } from '../../components/components-public/Footer';
-import { useGalleryStore, useSettingsStore } from '../../store/public';
 import { MuiAppThemeProvider } from '../../theme/mui/MuiAppThemeProvider';
+import { useSettingsStore } from '../../store/public/useSettingsStore';
+import { useGalleryStore } from '../../store/public/useGalleryStore';
 
 interface PublicNavigationItem {
     label: string;

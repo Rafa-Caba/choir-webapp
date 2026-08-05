@@ -4,7 +4,7 @@ import { Box, Paper, Typography, useMediaQuery } from '@mui/material';
 
 import '../../assets/styles/layout/_main.scss';
 import { MyCarousel } from '../../components/components-public/MyCarousel';
-import { useSettingsStore } from '../../store/public';
+import { useSettingsStore } from '../../store/public/useSettingsStore';
 
 const acronymLabels = [
     'Sabiduría',

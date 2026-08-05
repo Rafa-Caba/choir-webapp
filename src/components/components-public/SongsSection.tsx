@@ -15,8 +15,10 @@ import FolderRoundedIcon from '@mui/icons-material/FolderRounded';
 import MusicNoteRoundedIcon from '@mui/icons-material/MusicNoteRounded';
 
 import { SongModal } from './SongModal';
-import { useSongStore, useSongTypeStore } from '../../store/public';
+
 import type { Song, SongType } from '../../types/song';
+import { useSongStore } from '../../store/public/useSongStore';
+import { useSongTypeStore } from '../../store/public/useSongTypeStore';
 
 const sortSongTypes = (a: SongType, b: SongType) => {
     const orderA = typeof a.order === 'number' ? a.order : 99;
