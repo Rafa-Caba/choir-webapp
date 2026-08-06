@@ -89,8 +89,8 @@ export const getChoirUsers = async (
     page: number = 1,
     limit: number = 10,
 ): Promise<PaginatedChoirUsersResponse> => {
+    void choirId;
     const searchParams = new URLSearchParams({
-        choirId,
         page: String(page),
         limit: String(limit),
     });
@@ -100,8 +100,8 @@ export const getChoirUsers = async (
 };
 
 export const getChoirUserById = async (userId: string): Promise<ChoirUser> => {
-    const { data } = await api.get<ChoirUser>(`/users/${userId}`);
-    return data;
+    const { data } = await api.get<{ user: ChoirUser }>(`/users/${userId}`);
+    return data.user;
 };
 
 export const createChoirUser = async (
@@ -111,7 +111,7 @@ export const createChoirUser = async (
 ): Promise<ChoirUser> => {
     const formData = new FormData();
 
-    formData.append('choirId', choirId);
+    void choirId;
     formData.append('name', payload.name);
     formData.append('username', payload.username);
     formData.append('email', payload.email);
@@ -142,7 +142,7 @@ export const updateChoirUser = async (
 ): Promise<ChoirUser> => {
     const formData = new FormData();
 
-    formData.append('choirId', choirId);
+    void choirId;
     formData.append('name', payload.name);
     formData.append('username', payload.username);
     formData.append('email', payload.email);

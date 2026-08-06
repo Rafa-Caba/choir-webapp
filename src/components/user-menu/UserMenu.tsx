@@ -32,7 +32,14 @@ import { useAuth } from '../../context/AuthContext';
 
 export const UserMenu = () => {
     const navigate = useNavigate();
-    const { user, updateUser, logout, isSuperAdmin } = useAuth();
+    const {
+        user,
+        updateUser,
+        logout,
+        isSuperAdmin,
+        hasTenantContext,
+        returnToPlatform,
+    } = useAuth();
 
     const { updateMyTheme } = useUsersStore();
     const { themes, fetchThemes } = useThemeStore();
@@ -43,8 +50,10 @@ export const UserMenu = () => {
     const menuOpen = Boolean(anchorElement);
 
     useEffect(() => {
-        void fetchThemes();
-    }, [fetchThemes]);
+        if (hasTenantContext) {
+            void fetchThemes();
+        }
+    }, [fetchThemes, hasTenantContext]);
 
     const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorElement(event.currentTarget);
@@ -57,6 +66,12 @@ export const UserMenu = () => {
     const handleNavigate = (path: string) => {
         handleCloseMenu();
         navigate(path);
+    };
+
+    const handleOpenPlatformConsole = (): void => {
+        handleCloseMenu();
+        returnToPlatform();
+        navigate('/admin/choirs', { replace: true });
     };
 
     const handleLogout = () => {
@@ -159,7 +174,13 @@ export const UserMenu = () => {
 
                 <Divider sx={{ borderColor: 'color-mix(in srgb, var(--color-border) 36%, transparent)' }} />
 
-                <MenuItem onClick={() => handleNavigate('/admin')}>
+                <MenuItem
+                    onClick={() => (
+                        isSuperAdmin && !hasTenantContext
+                            ? handleNavigate('/admin/choirs')
+                            : handleNavigate('/admin')
+                    )}
+                >
                     <ListItemIcon>
                         <DashboardRoundedIcon fontSize="small" sx={{ color: 'var(--color-primary)' }} />
                     </ListItemIcon>
@@ -180,21 +201,32 @@ export const UserMenu = () => {
                     <ListItemText primary="Ver mi perfil" />
                 </MenuItem>
 
-                <MenuItem onClick={handleOpenThemeModal}>
-                    <ListItemIcon>
-                        <PaletteRoundedIcon fontSize="small" sx={{ color: 'var(--color-primary)' }} />
-                    </ListItemIcon>
-                    <ListItemText primary="Cambiar tema del admin" />
-                </MenuItem>
-
-                {isSuperAdmin && (<>
-                    <MenuItem onClick={() => handleNavigate('/admin/public-test')}>
+                {hasTenantContext && (
+                    <MenuItem onClick={handleOpenThemeModal}>
                         <ListItemIcon>
-                            <ScienceRoundedIcon fontSize="small" sx={{ color: 'var(--color-primary)' }} />
+                            <PaletteRoundedIcon fontSize="small" sx={{ color: 'var(--color-primary)' }} />
                         </ListItemIcon>
-                        <ListItemText primary="Entorno de pruebas" />
+                        <ListItemText primary="Cambiar tema del admin" />
                     </MenuItem>
-                </>
+                )}
+
+                {isSuperAdmin && (
+                    <>
+                        {hasTenantContext && (
+                            <MenuItem onClick={handleOpenPlatformConsole}>
+                                <ListItemIcon>
+                                    <DashboardRoundedIcon fontSize="small" sx={{ color: 'var(--color-primary)' }} />
+                                </ListItemIcon>
+                                <ListItemText primary="Volver a consola de coros" />
+                            </MenuItem>
+                        )}
+                        <MenuItem onClick={() => handleNavigate('/admin/public-test')}>
+                            <ListItemIcon>
+                                <ScienceRoundedIcon fontSize="small" sx={{ color: 'var(--color-primary)' }} />
+                            </ListItemIcon>
+                            <ListItemText primary="Entorno de pruebas" />
+                        </MenuItem>
+                    </>
                 )}
 
                 <Divider sx={{ borderColor: 'color-mix(in srgb, var(--color-border) 36%, transparent)' }} />

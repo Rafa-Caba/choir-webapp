@@ -31,6 +31,7 @@ import PeopleRoundedIcon from '@mui/icons-material/PeopleRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 import { useUsersStore } from '../../store/admin/useUsersStore';
+import type { UserRole } from '../../types/auth';
 
 interface SectionHeaderProps {
     title: string;
@@ -39,9 +40,7 @@ interface SectionHeaderProps {
     action?: ReactNode;
 }
 
-type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'EDITOR' | 'VIEWER';
-
-const getRoleChipColor = (role: string) => {
+const getRoleChipColor = (role: UserRole) => {
     if (role === 'SUPER_ADMIN') {
         return {
             label: 'Super Admin',
@@ -63,6 +62,14 @@ const getRoleChipColor = (role: string) => {
             label: 'Editor',
             backgroundColor: '#f59e0b',
             color: '#111827',
+        };
+    }
+
+    if (role === 'USER') {
+        return {
+            label: 'Usuario',
+            backgroundColor: '#2563eb',
+            color: '#ffffff',
         };
     }
 
@@ -373,7 +380,7 @@ export const AdminUsersList = () => {
                                     </TableRow>
                                 ) : (
                                     filteredUsers.map((userItem) => {
-                                        const roleChip = getRoleChipColor(userItem.role as UserRole);
+                                        const roleChip = getRoleChipColor(userItem.role);
 
                                         return (
                                             <TableRow

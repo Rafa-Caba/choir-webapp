@@ -1,42 +1,37 @@
 // src/components/auth/ProtectedRoute.tsx
 
-import { Navigate, Outlet } from 'react-router-dom';
-import { Spinner } from 'react-bootstrap';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 
-interface ProtectedRouteProps {
-    readonly requireAdmin?: boolean;
-}
-
-export const ProtectedRoute = ({ requireAdmin = false }: ProtectedRouteProps) => {
+export const ProtectedRoute = () => {
     const {
-        isAdmin,
         loading,
         requiresPasswordChange,
         user,
     } = useAuth();
+    const location = useLocation();
 
     if (loading) {
         return (
-            <div
-                className="d-flex justify-content-center align-items-center"
-                style={{ minHeight: '100vh' }}
+            <Box
+                sx={{
+                    minHeight: '100vh',
+                    display: 'grid',
+                    placeItems: 'center',
+                }}
             >
-                <Spinner animation="border" />
-            </div>
+                <CircularProgress aria-label="Restaurando sesión" />
+            </Box>
         );
     }
 
     if (!user) {
-        return <Navigate to="/auth/login" replace />;
+        return <Navigate to="/auth/login" replace state={{ from: location }} />;
     }
 
     if (requiresPasswordChange) {
         return <Navigate to="/auth/change-password" replace />;
-    }
-
-    if (requireAdmin && !isAdmin) {
-        return <Navigate to="/admin" replace />;
     }
 
     return <Outlet />;

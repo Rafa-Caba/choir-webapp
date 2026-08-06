@@ -8,6 +8,7 @@ import {
     AppBar,
     Avatar,
     Box,
+    Button,
     // BottomNavigation, // Enable again if you want to use the mobile bottom nav
     // BottomNavigationAction, // Enable again if you want to use the mobile bottom nav
     Chip,
@@ -27,6 +28,7 @@ import {
 import type { Theme } from '@mui/material/styles';
 
 import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ArticleRoundedIcon from '@mui/icons-material/ArticleRounded';
 import BuildRoundedIcon from '@mui/icons-material/BuildRounded';
 import CampaignRoundedIcon from '@mui/icons-material/CampaignRounded';
@@ -70,8 +72,19 @@ const headerHeight = 76;
 const footerHeight = 58;
 // const bottomNavHeight = 74; // Enable again if you want to use the mobile bottom nav
 
-const brandTitleStorageKey = 'ero-cras-brand-title';
-const brandLogoStorageKey = 'ero-cras-brand-logo';
+const brandTitleStoragePrefix = 'choir-web:brand-title';
+const brandLogoStoragePrefix = 'choir-web:brand-logo';
+const defaultFaviconUrl = '/images/erocrasLogo.png';
+
+interface CachedBrand {
+    readonly choirId: string | null;
+    readonly webTitle: string;
+    readonly logoUrl: string;
+}
+
+const getTenantBrandStorageKey = (prefix: string, choirId: string): string => (
+    `${prefix}:${choirId}`
+);
 
 const readLocalStorageValue = (key: string): string => {
     if (typeof window === 'undefined') {
@@ -121,15 +134,22 @@ const AdminLayout = () => {
 
     const {
         user,
+        choir,
+        targetChoir,
+        effectiveChoirId,
+        viewMode,
+        hasTenantContext,
         loading,
-        isAdmin,
         isSuperAdmin,
+        canManageUsers,
         canManageContent,
         canManageInstruments,
         canManageMembers,
         canManageSettings,
         canManageSongTypes,
         canManageThemes,
+        canViewTenantLogs,
+        returnToPlatform,
     } = useAuth();
     const { settings, fetchSettings } = useAdminSettingsStore();
     const { images, fetchGallery } = useGalleryStore();
@@ -139,8 +159,11 @@ const AdminLayout = () => {
 
     const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
     const [desktopDrawerCollapsed, setDesktopDrawerCollapsed] = useState(false);
-    const [cachedWebTitle, setCachedWebTitle] = useState<string>(() => readLocalStorageValue(brandTitleStorageKey));
-    const [cachedLogoUrl, setCachedLogoUrl] = useState<string>(() => readLocalStorageValue(brandLogoStorageKey));
+    const [cachedBrand, setCachedBrand] = useState<CachedBrand>({
+        choirId: null,
+        webTitle: '',
+        logoUrl: '',
+    });
 
     const isAuthenticated = Boolean(user);
     const activeDrawerWidth = desktopDrawerCollapsed ? collapsedDrawerWidth : drawerWidth;
@@ -148,9 +171,17 @@ const AdminLayout = () => {
     const logoImage = images.find((image) => image.imageLogo);
     const realWebTitle = settings?.webTitle?.trim() || '';
     const realLogoUrl = logoImage?.imageUrl?.trim() || '';
+    const cachedWebTitle = cachedBrand.choirId === effectiveChoirId
+        ? cachedBrand.webTitle
+        : '';
+    const cachedLogoUrl = cachedBrand.choirId === effectiveChoirId
+        ? cachedBrand.logoUrl
+        : '';
     const resolvedWebTitle = realWebTitle || cachedWebTitle;
     const resolvedLogoUrl = realLogoUrl || cachedLogoUrl;
-    const layoutTitle = resolvedWebTitle || 'Cargando sitio...';
+    const layoutTitle = isSuperAdmin && !hasTenantContext
+        ? 'Choir Platform'
+        : resolvedWebTitle || 'Cargando sitio...';
     const layoutLogoFallback = resolvedWebTitle
         ? resolvedWebTitle
             .split(' ')
@@ -161,35 +192,84 @@ const AdminLayout = () => {
         : '';
 
     useEffect(() => {
-        if (resolvedWebTitle) {
-            document.title = resolvedWebTitle;
+        if (!effectiveChoirId) {
+            setCachedBrand({ choirId: null, webTitle: '', logoUrl: '' });
+            return;
+        }
+
+        setCachedBrand({
+            choirId: effectiveChoirId,
+            webTitle: readLocalStorageValue(
+                getTenantBrandStorageKey(brandTitleStoragePrefix, effectiveChoirId),
+            ),
+            logoUrl: readLocalStorageValue(
+                getTenantBrandStorageKey(brandLogoStoragePrefix, effectiveChoirId),
+            ),
+        });
+    }, [effectiveChoirId]);
+
+    useEffect(() => {
+        document.title = isSuperAdmin && !hasTenantContext
+            ? 'Choir Platform'
+            : resolvedWebTitle || 'Choir App';
+        setDocumentFavicon(resolvedLogoUrl || defaultFaviconUrl);
+
+        if (!effectiveChoirId) {
+            return;
         }
 
         if (realWebTitle && realWebTitle !== cachedWebTitle) {
-            setCachedWebTitle(realWebTitle);
-            writeLocalStorageValue(brandTitleStorageKey, realWebTitle);
-        }
-
-        if (resolvedLogoUrl) {
-            setDocumentFavicon(resolvedLogoUrl);
+            writeLocalStorageValue(
+                getTenantBrandStorageKey(brandTitleStoragePrefix, effectiveChoirId),
+                realWebTitle,
+            );
+            setCachedBrand((currentBrand) => ({
+                choirId: effectiveChoirId,
+                webTitle: realWebTitle,
+                logoUrl: currentBrand.choirId === effectiveChoirId
+                    ? currentBrand.logoUrl
+                    : '',
+            }));
         }
 
         if (realLogoUrl && realLogoUrl !== cachedLogoUrl) {
-            setCachedLogoUrl(realLogoUrl);
-            writeLocalStorageValue(brandLogoStorageKey, realLogoUrl);
+            writeLocalStorageValue(
+                getTenantBrandStorageKey(brandLogoStoragePrefix, effectiveChoirId),
+                realLogoUrl,
+            );
+            setCachedBrand((currentBrand) => ({
+                choirId: effectiveChoirId,
+                webTitle: currentBrand.choirId === effectiveChoirId
+                    ? currentBrand.webTitle
+                    : '',
+                logoUrl: realLogoUrl,
+            }));
         }
-    }, [cachedLogoUrl, cachedWebTitle, realLogoUrl, realWebTitle, resolvedLogoUrl, resolvedWebTitle]);
+    }, [
+        cachedLogoUrl,
+        cachedWebTitle,
+        effectiveChoirId,
+        hasTenantContext,
+        isSuperAdmin,
+        realLogoUrl,
+        realWebTitle,
+        resolvedLogoUrl,
+        resolvedWebTitle,
+    ]);
 
     useEffect(() => {
-        if (!loading && isAuthenticated) {
+        if (!loading && isAuthenticated && hasTenantContext) {
             void fetchSettings();
             void fetchGallery();
         }
-    }, [loading, isAuthenticated, fetchSettings, fetchGallery]);
+    }, [loading, isAuthenticated, hasTenantContext, fetchSettings, fetchGallery]);
 
-    const choirCode = user?.choirCode || 'eroc1';
-    const choirName = user?.choirName || '';
-    const choirLabel = choirName || choirCode || 'Coro asignado';
+    const effectiveChoir = targetChoir ?? choir;
+    const choirCode = effectiveChoir?.code || user?.choirCode || '';
+    const choirName = effectiveChoir?.name || user?.choirName || '';
+    const choirLabel = hasTenantContext
+        ? choirName || choirCode || 'Coro seleccionado'
+        : 'Consola de plataforma';
 
     const navigationItems = useMemo<AdminNavigationItem[]>(() => {
         return [
@@ -197,7 +277,7 @@ const AdminLayout = () => {
                 label: 'Inicio',
                 path: '/admin',
                 icon: <DashboardRoundedIcon />,
-                visible: true,
+                visible: hasTenantContext,
                 showInBottomNav: true,
             },
             {
@@ -211,91 +291,91 @@ const AdminLayout = () => {
                 label: 'Cantos',
                 path: '/admin/songs',
                 icon: <QueueMusicRoundedIcon />,
-                visible: true,
+                visible: hasTenantContext,
                 showInBottomNav: true,
             },
             {
                 label: 'Galería',
                 path: '/admin/gallery',
                 icon: <CollectionsRoundedIcon />,
-                visible: true,
+                visible: hasTenantContext,
                 showInBottomNav: true,
             },
             {
                 label: 'Blog',
                 path: '/admin/blog/view',
                 icon: <ArticleRoundedIcon />,
-                visible: true,
+                visible: hasTenantContext,
                 showInBottomNav: true,
             },
             {
                 label: 'Usuarios',
                 path: '/admin/users',
                 icon: <PeopleRoundedIcon />,
-                visible: isAdmin,
+                visible: hasTenantContext && canManageUsers,
                 showInBottomNav: false,
             },
             {
                 label: 'Logs del sitio',
                 path: '/admin/logs',
                 icon: <HistoryRoundedIcon />,
-                visible: isAdmin,
+                visible: hasTenantContext && canViewTenantLogs,
                 showInBottomNav: false,
             },
             {
                 label: 'Instrumentos',
                 path: '/admin/instruments',
                 icon: <BuildRoundedIcon />,
-                visible: canManageInstruments,
+                visible: hasTenantContext && canManageInstruments,
                 showInBottomNav: false,
             },
             {
                 label: 'Tipos de Cantos',
                 path: '/admin/song-types',
                 icon: <CategoryRoundedIcon />,
-                visible: canManageSongTypes,
+                visible: hasTenantContext && canManageSongTypes,
                 showInBottomNav: false,
             },
             {
                 label: 'Miembros',
                 path: '/admin/members',
                 icon: <GroupsRoundedIcon />,
-                visible: canManageMembers,
+                visible: hasTenantContext && canManageMembers,
                 showInBottomNav: false,
             },
             {
                 label: 'Admin Avisos',
                 path: '/admin/announcements',
                 icon: <CampaignRoundedIcon />,
-                visible: canManageContent,
+                visible: hasTenantContext && canManageContent,
                 showInBottomNav: false,
             },
             {
                 label: 'Admin Blogs',
                 path: '/admin/blog',
                 icon: <MusicNoteRoundedIcon />,
-                visible: canManageContent,
+                visible: hasTenantContext && canManageContent,
                 showInBottomNav: false,
             },
             {
                 label: 'Ajustes de Página',
                 path: '/admin/settings',
                 icon: <SettingsRoundedIcon />,
-                visible: canManageSettings,
+                visible: hasTenantContext && canManageSettings,
                 showInBottomNav: false,
             },
             {
                 label: 'Temas de Color',
                 path: '/admin/themes',
                 icon: <PaletteRoundedIcon />,
-                visible: canManageThemes,
+                visible: hasTenantContext && canManageThemes,
                 showInBottomNav: false,
             },
             {
                 label: 'Página Pública',
                 path: `/${choirCode}?fromAdmin=true`,
                 icon: <PublicRoundedIcon />,
-                visible: true,
+                visible: hasTenantContext && Boolean(choirCode),
                 showInBottomNav: false,
             },
         ];
@@ -307,7 +387,9 @@ const AdminLayout = () => {
         canManageSongTypes,
         canManageThemes,
         choirCode,
-        isAdmin,
+        hasTenantContext,
+        canManageUsers,
+        canViewTenantLogs,
         isSuperAdmin,
     ]);
 
@@ -323,6 +405,12 @@ const AdminLayout = () => {
 
     const handleNavigate = (path: string) => {
         navigate(path);
+        setMobileDrawerOpen(false);
+    };
+
+    const handleReturnToPlatform = (): void => {
+        returnToPlatform();
+        navigate('/admin/choirs', { replace: true });
         setMobileDrawerOpen(false);
     };
 
@@ -632,7 +720,9 @@ const AdminLayout = () => {
 
                                 <Chip
                                     size="small"
-                                    label={`Coro: ${choirLabel}${choirName && choirCode ? ` (${choirCode})` : ''}`}
+                                    label={hasTenantContext
+                                        ? `Coro: ${choirLabel}${choirName && choirCode ? ` (${choirCode})` : ''}`
+                                        : choirLabel}
                                     sx={{
                                         width: 'fit-content',
                                         maxWidth: { xs: '62vw', md: 'none' },
@@ -649,6 +739,27 @@ const AdminLayout = () => {
                             </Box>
                         </Box>
 
+                        {isSuperAdmin && viewMode === 'tenant' && targetChoir && (
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<ArrowBackRoundedIcon />}
+                                onClick={handleReturnToPlatform}
+                                sx={{
+                                    display: { xs: 'none', md: 'inline-flex' },
+                                    color: 'var(--color-button-text)',
+                                    borderColor: 'rgba(255, 255, 255, 0.4)',
+                                    fontWeight: 900,
+                                    '&:hover': {
+                                        borderColor: 'rgba(255, 255, 255, 0.72)',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                                    },
+                                }}
+                            >
+                                Volver a consola
+                            </Button>
+                        )}
+
                         <Typography
                             variant="body2"
                             sx={{
@@ -662,22 +773,24 @@ const AdminLayout = () => {
                             ¡Hola {formatName(user.name)}!
                         </Typography>
 
-                        <Tooltip title="Abrir chat grupal">
-                            <IconButton
-                                aria-label="Abrir chat grupal"
-                                onClick={() => navigate('/admin/chat-group')}
-                                sx={{
-                                    color: 'var(--color-button-text)',
-                                    border: '1px solid rgba(255, 255, 255, 0.22)',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                                    '&:hover': {
-                                        backgroundColor: 'rgba(255, 255, 255, 0.18)',
-                                    },
-                                }}
-                            >
-                                <ChatRoundedIcon />
-                            </IconButton>
-                        </Tooltip>
+                        {hasTenantContext && (
+                            <Tooltip title="Abrir chat grupal">
+                                <IconButton
+                                    aria-label="Abrir chat grupal"
+                                    onClick={() => navigate('/admin/chat-group')}
+                                    sx={{
+                                        color: 'var(--color-button-text)',
+                                        border: '1px solid rgba(255, 255, 255, 0.22)',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(255, 255, 255, 0.18)',
+                                        },
+                                    }}
+                                >
+                                    <ChatRoundedIcon />
+                                </IconButton>
+                            </Tooltip>
+                        )}
 
                         <UserMenu />
                     </Toolbar>
@@ -723,7 +836,7 @@ const AdminLayout = () => {
                     </Drawer>
                 </Box>
 
-                {showRightRail && (
+                {showRightRail && hasTenantContext && (
                     <Box
                         component="aside"
                         aria-label="Avisos administrativos"

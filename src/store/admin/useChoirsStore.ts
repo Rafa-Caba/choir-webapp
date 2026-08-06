@@ -52,6 +52,7 @@ interface ChoirState {
     setCurrentPage: (page: number) => void;
     setChoirUsersCurrentPage: (page: number) => void;
     getChoirByIdFromState: (id: string) => Choir | undefined;
+    resetTenantData: () => void;
 }
 
 export const useChoirsStore = create<ChoirState>((set, get) => ({
@@ -142,9 +143,12 @@ export const useChoirsStore = create<ChoirState>((set, get) => ({
         await deleteChoir(id);
 
         set((state) => ({
-            choirs: state.choirs.filter((choir) => choir.id !== id),
-            selectedChoir: state.selectedChoir?.id === id ? null : state.selectedChoir,
-            totalChoirs: state.totalChoirs > 0 ? state.totalChoirs - 1 : 0,
+            choirs: state.choirs.map((choir) => (
+                choir.id === id ? { ...choir, isActive: false } : choir
+            )),
+            selectedChoir: state.selectedChoir?.id === id
+                ? { ...state.selectedChoir, isActive: false }
+                : state.selectedChoir,
         }));
     },
 
@@ -243,4 +247,13 @@ export const useChoirsStore = create<ChoirState>((set, get) => ({
     getChoirByIdFromState: (id: string) => {
         return get().choirs.find((choir) => choir.id === id);
     },
+
+    resetTenantData: () => set({
+        choirUsers: [],
+        selectedChoirUser: null,
+        choirUsersCurrentPage: 1,
+        choirUsersTotalPages: 1,
+        totalChoirUsers: 0,
+        choirUsersLoading: false,
+    }),
 }));

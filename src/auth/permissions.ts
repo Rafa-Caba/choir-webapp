@@ -2,9 +2,21 @@
 
 import type { UserRole } from '../types/auth';
 
+export type PermissionKey =
+    | 'canManageChoirs'
+    | 'canManageUsers'
+    | 'canManageContent'
+    | 'canManageSettings'
+    | 'canManageInstruments'
+    | 'canManageMembers'
+    | 'canManageSongTypes'
+    | 'canManageThemes'
+    | 'canViewTenantLogs'
+    | 'canViewPlatformLogs';
+
 export interface PermissionSet {
     readonly isSuperAdmin: boolean;
-    readonly isAdmin: boolean;
+    readonly isEditor: boolean;
     readonly canManageChoirs: boolean;
     readonly canManageUsers: boolean;
     readonly canManageContent: boolean;
@@ -13,18 +25,19 @@ export interface PermissionSet {
     readonly canManageMembers: boolean;
     readonly canManageSongTypes: boolean;
     readonly canManageThemes: boolean;
-    readonly canViewAuditLogs: boolean;
+    readonly canViewTenantLogs: boolean;
+    readonly canViewPlatformLogs: boolean;
 }
 
 export const getPermissions = (role: UserRole | null | undefined): PermissionSet => {
     const isSuperAdmin = role === 'SUPER_ADMIN';
-    const isAdmin = role === 'ADMIN';
+    const tenantAdmin = role === 'ADMIN';
     const isEditor = role === 'EDITOR';
-    const canManageTenantAdministration = isSuperAdmin || isAdmin;
+    const canManageTenantAdministration = isSuperAdmin || tenantAdmin;
 
     return {
         isSuperAdmin,
-        isAdmin: canManageTenantAdministration,
+        isEditor,
         canManageChoirs: isSuperAdmin,
         canManageUsers: canManageTenantAdministration,
         canManageContent: canManageTenantAdministration || isEditor,
@@ -33,9 +46,15 @@ export const getPermissions = (role: UserRole | null | undefined): PermissionSet
         canManageMembers: canManageTenantAdministration,
         canManageSongTypes: canManageTenantAdministration,
         canManageThemes: canManageTenantAdministration,
-        canViewAuditLogs: canManageTenantAdministration,
+        canViewTenantLogs: canManageTenantAdministration,
+        canViewPlatformLogs: isSuperAdmin,
     };
 };
+
+export const hasPermission = (
+    role: UserRole | null | undefined,
+    permission: PermissionKey,
+): boolean => getPermissions(role)[permission];
 
 export const isSuperAdmin = (role: UserRole | null | undefined): boolean => (
     getPermissions(role).isSuperAdmin
@@ -57,6 +76,10 @@ export const canManageSettings = (role: UserRole | null | undefined): boolean =>
     getPermissions(role).canManageSettings
 );
 
-export const canViewAuditLogs = (role: UserRole | null | undefined): boolean => (
-    getPermissions(role).canViewAuditLogs
+export const canViewTenantLogs = (role: UserRole | null | undefined): boolean => (
+    getPermissions(role).canViewTenantLogs
+);
+
+export const canViewPlatformLogs = (role: UserRole | null | undefined): boolean => (
+    getPermissions(role).canViewPlatformLogs
 );

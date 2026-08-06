@@ -40,7 +40,7 @@ interface UserInstrumentFields {
 }
 
 export const UserSettings = () => {
-    const { user, updateUser } = useAuth();
+    const { user, updateUser, hasTenantContext } = useAuth();
     const { updateMyProfile } = useUsersStore();
 
     const {
@@ -83,12 +83,12 @@ export const UserSettings = () => {
     }, [user]);
 
     useEffect(() => {
-        if (!instruments || instruments.length === 0) {
+        if (hasTenantContext && (!instruments || instruments.length === 0)) {
             fetchInstruments().catch((error: Error) => {
                 console.error('Error fetching instruments for UserSettings:', error);
             });
         }
-    }, [fetchInstruments, instruments]);
+    }, [fetchInstruments, hasTenantContext, instruments]);
 
     useEffect(() => {
         return () => {
@@ -157,11 +157,11 @@ export const UserSettings = () => {
         payload.append('username', formData.username.trim());
         payload.append('email', formData.email.trim());
 
-        if (formData.instrumentId) {
+        if (hasTenantContext && formData.instrumentId) {
             payload.append('instrumentId', formData.instrumentId);
         }
 
-        if (formData.instrumentLabel) {
+        if (hasTenantContext && formData.instrumentLabel) {
             payload.append('instrumentLabel', formData.instrumentLabel);
         }
 
@@ -287,7 +287,9 @@ export const UserSettings = () => {
                                     fontSize: '0.9rem',
                                 }}
                             >
-                                Actualiza tu información personal, instrumento y foto de perfil.
+                                {hasTenantContext
+                                    ? 'Actualiza tu información personal, instrumento y foto de perfil.'
+                                    : 'Actualiza tu información personal y foto de perfil de plataforma.'}
                             </Typography>
                         </Box>
                     </Box>
@@ -453,48 +455,52 @@ export const UserSettings = () => {
                                 required
                             />
 
-                            <Box
-                                sx={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                    gap: 1,
-                                }}
-                            >
-                                <TextField
-                                    type="text"
-                                    name="instrumentLabel"
-                                    label="Instrumento"
-                                    placeholder="Selecciona un instrumento..."
-                                    value={formData.instrumentLabel}
-                                    disabled
-                                />
+                            {hasTenantContext && (
+                                <>
+                                    <Box
+                                        sx={{
+                                            display: 'grid',
+                                            gridTemplateColumns: 'minmax(0, 1fr) auto',
+                                            gap: 1,
+                                        }}
+                                    >
+                                        <TextField
+                                            type="text"
+                                            name="instrumentLabel"
+                                            label="Instrumento"
+                                            placeholder="Selecciona un instrumento..."
+                                            value={formData.instrumentLabel}
+                                            disabled
+                                        />
 
-                                <Button
-                                    type="button"
-                                    variant="outlined"
-                                    onClick={handleOpenInstrumentPicker}
-                                    disabled={instrumentsLoading || loading}
-                                    sx={{
-                                        borderRadius: 1.5,
-                                        px: 2,
-                                        fontWeight: 950,
-                                        whiteSpace: 'nowrap',
-                                    }}
-                                >
-                                    {instrumentsLoading ? 'Cargando...' : 'Elegir'}
-                                </Button>
-                            </Box>
+                                        <Button
+                                            type="button"
+                                            variant="outlined"
+                                            onClick={handleOpenInstrumentPicker}
+                                            disabled={instrumentsLoading || loading}
+                                            sx={{
+                                                borderRadius: 1.5,
+                                                px: 2,
+                                                fontWeight: 950,
+                                                whiteSpace: 'nowrap',
+                                            }}
+                                        >
+                                            {instrumentsLoading ? 'Cargando...' : 'Elegir'}
+                                        </Button>
+                                    </Box>
 
-                            {formData.instrumentId && (
-                                <Typography
-                                    sx={{
-                                        color: 'var(--color-secondary-text)',
-                                        fontWeight: 800,
-                                        fontSize: '0.86rem',
-                                    }}
-                                >
-                                    Instrumento seleccionado: {formData.instrumentLabel}
-                                </Typography>
+                                    {formData.instrumentId && (
+                                        <Typography
+                                            sx={{
+                                                color: 'var(--color-secondary-text)',
+                                                fontWeight: 800,
+                                                fontSize: '0.86rem',
+                                            }}
+                                        >
+                                            Instrumento seleccionado: {formData.instrumentLabel}
+                                        </Typography>
+                                    )}
+                                </>
                             )}
                         </Box>
                     </Box>
@@ -553,13 +559,15 @@ export const UserSettings = () => {
                 </Box>
             </Paper>
 
-            <InstrumentPickerModal
-                show={showInstrumentPicker}
-                onClose={() => setShowInstrumentPicker(false)}
-                instruments={instruments}
-                selectedInstrumentId={formData.instrumentId || null}
-                onSelectInstrument={handleInstrumentSelected}
-            />
+            {hasTenantContext && (
+                <InstrumentPickerModal
+                    show={showInstrumentPicker}
+                    onClose={() => setShowInstrumentPicker(false)}
+                    instruments={instruments}
+                    selectedInstrumentId={formData.instrumentId || null}
+                    onSelectInstrument={handleInstrumentSelected}
+                />
+            )}
         </Box>
     );
 };

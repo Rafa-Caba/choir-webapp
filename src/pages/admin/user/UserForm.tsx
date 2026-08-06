@@ -30,9 +30,7 @@ import { useUsersStore } from '../../../store/admin/useUsersStore';
 import { useInstrumentsStore } from '../../../store/admin/useInstrumentsStore';
 import { InstrumentPickerModal } from '../../../components/components-admin/instruments/InstrumentPickerModal';
 import type { Instrument } from '../../../types/instrument';
-import { useAuth } from '../../../context/AuthContext';
-
-type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'EDITOR' | 'VIEWER';
+import type { SaveUserPayload, TenantUserRole } from '../../../services/admin/users';
 
 interface UserFormState {
     name: string;
@@ -40,24 +38,13 @@ interface UserFormState {
     email: string;
     password: string;
     confirmPassword: string;
-    role: UserRole;
+    role: TenantUserRole;
     instrumentId: string;
     instrumentLabel: string;
     bio: string;
     voice: boolean;
 }
 
-interface SaveUserPayload {
-    name: string;
-    username: string;
-    email: string;
-    role: UserRole;
-    instrumentId: string;
-    instrumentLabel: string;
-    bio: string;
-    voice: boolean;
-    password?: string;
-}
 
 interface UserInstrumentFields {
     instrumentId?: string;
@@ -65,7 +52,12 @@ interface UserInstrumentFields {
     instrument?: string;
 }
 
-const roleOptions: Array<{ value: UserRole; label: string; description: string }> = [
+const roleOptions: Array<{ value: TenantUserRole; label: string; description: string }> = [
+    {
+        value: 'USER',
+        label: 'Usuario',
+        description: 'Acceso estándar al coro',
+    },
     {
         value: 'VIEWER',
         label: 'Viewer',
@@ -81,26 +73,19 @@ const roleOptions: Array<{ value: UserRole; label: string; description: string }
         label: 'Admin',
         description: 'Control total del coro',
     },
-    {
-        value: 'SUPER_ADMIN',
-        label: 'Super Admin',
-        description: 'Todos los coros',
-    },
 ];
 
-const isUserRole = (value: string): value is UserRole => {
-    return value === 'SUPER_ADMIN' || value === 'ADMIN' || value === 'EDITOR' || value === 'VIEWER';
-};
+const isTenantUserRole = (value: string): value is TenantUserRole => (
+    value === 'ADMIN' || value === 'EDITOR' || value === 'USER' || value === 'VIEWER'
+);
 
 export const UserForm = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const { user: authUser } = useAuth();
     const { saveUserAction, getUserById, fetchUsers } = useUsersStore();
 
     const isEdit = Boolean(id);
-    const canManageSuperAdminRole = authUser?.role === 'SUPER_ADMIN';
 
     const {
         instruments,
@@ -126,15 +111,7 @@ export const UserForm = () => {
     const [loading, setLoading] = useState(false);
     const [showInstrumentPicker, setShowInstrumentPicker] = useState(false);
 
-    const currentRoleIsProtectedSuperAdmin = formData.role === 'SUPER_ADMIN' && !canManageSuperAdminRole;
-
-    const availableRoleOptions = useMemo(() => {
-        if (canManageSuperAdminRole) {
-            return roleOptions;
-        }
-
-        return roleOptions.filter((roleOption) => roleOption.value !== 'SUPER_ADMIN');
-    }, [canManageSuperAdminRole]);
+    const availableRoleOptions = useMemo(() => roleOptions, []);
 
     useEffect(() => {
         if (!instruments || instruments.length === 0) {
@@ -162,7 +139,7 @@ export const UserForm = () => {
             }
 
             const userWithInstrument = userToEdit as typeof userToEdit & UserInstrumentFields;
-            const safeRole = isUserRole(userToEdit.role) ? userToEdit.role : 'VIEWER';
+            const safeRole = isTenantUserRole(userToEdit.role) ? userToEdit.role : 'VIEWER';
 
             setFormData({
                 name: userToEdit.name,
@@ -208,21 +185,10 @@ export const UserForm = () => {
         }));
     };
 
-    const handleRoleChange = (event: SelectChangeEvent<UserRole>) => {
-        const nextRole = event.target.value;
-
-        if (nextRole === 'SUPER_ADMIN' && !canManageSuperAdminRole) {
-            Swal.fire(
-                'Rol protegido',
-                'Solo un Super Admin puede asignar o modificar el rol Super Admin.',
-                'warning',
-            );
-            return;
-        }
-
+    const handleRoleChange = (event: SelectChangeEvent<TenantUserRole>) => {
         setFormData((previousValue) => ({
             ...previousValue,
-            role: nextRole,
+            role: event.target.value,
         }));
     };
 
@@ -267,15 +233,6 @@ export const UserForm = () => {
 
         if (!formData.name.trim() || !formData.username.trim() || !formData.email.trim()) {
             Swal.fire('Error', 'Por favor completa los campos obligatorios (*)', 'error');
-            return;
-        }
-
-        if (formData.role === 'SUPER_ADMIN' && !canManageSuperAdminRole) {
-            Swal.fire(
-                'Rol protegido',
-                'Solo un Super Admin puede guardar usuarios con rol Super Admin.',
-                'warning',
-            );
             return;
         }
 
@@ -562,7 +519,7 @@ export const UserForm = () => {
                                     gap: 1.5,
                                 }}
                             >
-                                <FormControl fullWidth disabled={loading || currentRoleIsProtectedSuperAdmin}>
+                                <FormControl fullWidth disabled={loading}>
                                     <InputLabel id="user-role-label">Rol *</InputLabel>
                                     <Select
                                         labelId="user-role-label"
@@ -570,12 +527,6 @@ export const UserForm = () => {
                                         label="Rol *"
                                         onChange={handleRoleChange}
                                     >
-                                        {currentRoleIsProtectedSuperAdmin && (
-                                            <MenuItem value="SUPER_ADMIN">
-                                                Super Admin (Protegido)
-                                            </MenuItem>
-                                        )}
-
                                         {availableRoleOptions.map((roleOption) => (
                                             <MenuItem key={roleOption.value} value={roleOption.value}>
                                                 {roleOption.label} ({roleOption.description})
@@ -616,18 +567,6 @@ export const UserForm = () => {
                                     </Button>
                                 </Box>
                             </Box>
-
-                            {currentRoleIsProtectedSuperAdmin && (
-                                <Typography
-                                    sx={{
-                                        color: 'var(--color-secondary-text)',
-                                        fontWeight: 800,
-                                        fontSize: '0.86rem',
-                                    }}
-                                >
-                                    Este usuario tiene rol Super Admin. Solo otro Super Admin puede modificar ese rol.
-                                </Typography>
-                            )}
 
                             {formData.instrumentId && (
                                 <Typography

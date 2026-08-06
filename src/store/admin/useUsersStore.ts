@@ -1,71 +1,107 @@
+// src/store/admin/useUsersStore.ts
+
 import { create } from 'zustand';
-import { getAllUsers, saveUser, deleteUser, updateSelfProfile, updateSelfTheme } from '../../services/admin/users';
+import {
+    deleteUser,
+    getAllUsers,
+    getUserById,
+    saveUser,
+    updateSelfProfile,
+    updateSelfTheme,
+    type SaveUserPayload,
+} from '../../services/admin/users';
 import type { User } from '../../types/auth';
 
 interface UsersState {
-    users: User[];
-    currentPage: number;
-    totalPages: number;
-    loading: boolean;
-
-    fetchUsers: (page?: number) => Promise<void>;
-    deleteUserById: (id: string) => Promise<void>;
-    saveUserAction: (data: any, file?: File, id?: string) => Promise<void>;
-
-    updateMyProfile: (formData: FormData) => Promise<User>;
-    updateMyTheme: (themeId: string) => Promise<User>;
-
-    setCurrentPage: (page: number) => void;
-    getUserById: (id: string) => User | undefined;
+    readonly users: User[];
+    readonly currentPage: number;
+    readonly totalPages: number;
+    readonly totalUsers: number;
+    readonly loading: boolean;
+    readonly fetchUsers: (page?: number) => Promise<void>;
+    readonly fetchUser: (id: string) => Promise<User | null>;
+    readonly deleteUserById: (id: string) => Promise<void>;
+    readonly saveUserAction: (
+        data: SaveUserPayload,
+        file?: File,
+        id?: string,
+    ) => Promise<User>;
+    readonly updateMyProfile: (formData: FormData) => Promise<User>;
+    readonly updateMyTheme: (themeId: string) => Promise<User>;
+    readonly setCurrentPage: (page: number) => void;
+    readonly getUserById: (id: string) => User | undefined;
 }
 
 export const useUsersStore = create<UsersState>((set, get) => ({
     users: [],
     currentPage: 1,
     totalPages: 1,
+    totalUsers: 0,
     loading: false,
 
     fetchUsers: async (page = 1) => {
         set({ loading: true });
+
         try {
-            const { users, totalPages } = await getAllUsers(page);
-            set({ users, totalPages, currentPage: page });
-        } catch (error) {
-            console.error("Error fetching users:", error);
+            const response = await getAllUsers(page);
+            set({
+                users: response.users,
+                currentPage: response.currentPage,
+                totalPages: response.totalPages,
+                totalUsers: response.totalUsers,
+            });
         } finally {
             set({ loading: false });
         }
     },
 
-    deleteUserById: async (id: string) => {
+    fetchUser: async (id) => {
+        const localUser = get().users.find((user) => user.id === id);
+
+        if (localUser) {
+            return localUser;
+        }
+
         try {
-            await deleteUser(id);
-            get().fetchUsers(get().currentPage);
-        } catch (error) { throw error; }
+            const user = await getUserById(id);
+            set((state) => ({
+                users: state.users.some((item) => item.id === user.id)
+                    ? state.users.map((item) => item.id === user.id ? user : item)
+                    : [...state.users, user],
+            }));
+            return user;
+        } catch {
+            return null;
+        }
+    },
+
+    deleteUserById: async (id) => {
+        await deleteUser(id);
+        set((state) => ({
+            users: state.users.filter((user) => user.id !== id),
+            totalUsers: Math.max(0, state.totalUsers - 1),
+        }));
     },
 
     saveUserAction: async (data, file, id) => {
-        try {
-            await saveUser(data, file, id);
-            get().fetchUsers(get().currentPage);
-        } catch (error) { throw error; }
+        const savedUser = await saveUser(data, file, id);
+
+        set((state) => {
+            const exists = state.users.some((user) => user.id === savedUser.id);
+
+            return {
+                users: exists
+                    ? state.users.map((user) => user.id === savedUser.id ? savedUser : user)
+                    : [savedUser, ...state.users],
+                totalUsers: exists ? state.totalUsers : state.totalUsers + 1,
+            };
+        });
+
+        return savedUser;
     },
 
-    updateMyProfile: async (formData) => {
-        try {
-            return await updateSelfProfile(formData);
-        } catch (error) { throw error; }
-    },
-
-    updateMyTheme: async (themeId) => {
-        try {
-            return await updateSelfTheme(themeId);
-        } catch (error) { throw error; }
-    },
-
-    setCurrentPage: (page: number) => set({ currentPage: page }),
-
-    getUserById: (id: string) => {
-        return get().users.find(u => u.id === id);
-    },
+    updateMyProfile: (formData) => updateSelfProfile(formData),
+    updateMyTheme: (themeId) => updateSelfTheme(themeId),
+    setCurrentPage: (page) => set({ currentPage: page }),
+    getUserById: (id) => get().users.find((user) => user.id === id),
 }));

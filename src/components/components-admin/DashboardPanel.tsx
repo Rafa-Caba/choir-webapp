@@ -1,4 +1,4 @@
-// src/components/components-admin/AdminDashboardPanel.tsx
+// src/components/components-admin/DashboardPanel.tsx
 
 import { useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -13,7 +13,6 @@ import {
     Typography,
 } from '@mui/material';
 
-import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded';
 import CollectionsRoundedIcon from '@mui/icons-material/CollectionsRounded';
 import ImageRoundedIcon from '@mui/icons-material/ImageRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
@@ -21,11 +20,9 @@ import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import PeopleRoundedIcon from '@mui/icons-material/PeopleRounded';
 
 import { useAuth } from '../../context/AuthContext';
-import { useChoirsStore } from '../../store/admin/useChoirsStore';
 import { useGalleryStore } from '../../store/admin/useGalleryStore';
 import { useThemeStore } from '../../store/admin/useThemeStore';
 import { useUsersStore } from '../../store/admin/useUsersStore';
-import type { Choir } from '../../types/choir';
 
 interface StatCardProps {
     title: string;
@@ -171,11 +168,17 @@ export const AdminDashboardPanel = () => {
     const navigate = useNavigate();
 
     const { images, fetchGallery } = useGalleryStore();
-    const { user, isSuperAdmin, logout } = useAuth();
+    const {
+        user,
+        choir,
+        targetChoir,
+        canManageUsers,
+        canManageThemes,
+        logout,
+    } = useAuth();
 
     const { users, fetchUsers } = useUsersStore();
     const { themes, fetchThemes } = useThemeStore();
-    const { choirs, fetchChoirs } = useChoirsStore();
 
     useEffect(() => {
         if (!user) {
@@ -188,28 +191,20 @@ export const AdminDashboardPanel = () => {
     }, [fetchGallery]);
 
     useEffect(() => {
-        fetchUsers(1).catch(() => undefined);
-    }, [fetchUsers]);
-
-    useEffect(() => {
-        fetchThemes().catch(() => undefined);
-    }, [fetchThemes]);
-
-    useEffect(() => {
-        if (isSuperAdmin) {
-            fetchChoirs().catch(() => undefined);
+        if (canManageUsers) {
+            fetchUsers(1).catch(() => undefined);
         }
-    }, [isSuperAdmin, fetchChoirs]);
+    }, [canManageUsers, fetchUsers]);
+
+    useEffect(() => {
+        if (canManageThemes) {
+            fetchThemes().catch(() => undefined);
+        }
+    }, [canManageThemes, fetchThemes]);
 
     const startImage = images.find((image) => image.imageStart);
-    const choirName = user?.choirName || user?.choirId || 'Sin coro asignado';
-
-    const choirsList: Choir[] = Array.isArray(choirs) ? choirs : [];
-    const choirsPreview: Choir[] = choirsList.slice(0, 4);
-    const extraChoirs =
-        choirsList.length > choirsPreview.length
-            ? choirsList.length - choirsPreview.length
-            : 0;
+    const effectiveChoir = targetChoir ?? choir;
+    const choirName = effectiveChoir?.name || user?.choirName || 'Sin coro asignado';
 
     const handleLogout = () => {
         logout();
@@ -332,9 +327,7 @@ export const AdminDashboardPanel = () => {
                     display: 'grid',
                     gridTemplateColumns: {
                         xs: 'repeat(2, minmax(0, 1fr))',
-                        md: isSuperAdmin
-                            ? 'repeat(4, minmax(0, 1fr))'
-                            : 'repeat(3, minmax(0, 1fr))',
+                        md: 'repeat(auto-fit, minmax(180px, 1fr))',
                     },
                     gap: {
                         xs: 1.25,
@@ -342,19 +335,23 @@ export const AdminDashboardPanel = () => {
                     },
                 }}
             >
-                <StatCard
-                    title="Usuarios"
-                    value={users.length}
-                    subtitle="Activos"
-                    icon={<PeopleRoundedIcon />}
-                />
+                {canManageUsers && (
+                    <StatCard
+                        title="Usuarios"
+                        value={users.length}
+                        subtitle="Administrables"
+                        icon={<PeopleRoundedIcon />}
+                    />
+                )}
 
-                <StatCard
-                    title="Temas"
-                    value={themes.length}
-                    subtitle="Disponibles"
-                    icon={<PaletteRoundedIcon />}
-                />
+                {canManageThemes && (
+                    <StatCard
+                        title="Temas"
+                        value={themes.length}
+                        subtitle="Disponibles"
+                        icon={<PaletteRoundedIcon />}
+                    />
+                )}
 
                 <StatCard
                     title="Imágenes"
@@ -362,54 +359,6 @@ export const AdminDashboardPanel = () => {
                     subtitle="Galería"
                     icon={<CollectionsRoundedIcon />}
                 />
-
-                {isSuperAdmin && (
-                    <StatCard
-                        title="Coros"
-                        value={choirsList.length}
-                        icon={<AccountTreeRoundedIcon />}
-                    >
-                        {choirsList.length === 0 && (
-                            <Typography
-                                component="span"
-                                sx={{
-                                    color: 'var(--color-secondary-text)',
-                                    fontSize: '0.85rem',
-                                    fontWeight: 700,
-                                }}
-                            >
-                                Aún no hay coros registrados.
-                            </Typography>
-                        )}
-
-                        {choirsList.length > 0 && (
-                            <Box
-                                component="ul"
-                                sx={{
-                                    m: 0,
-                                    pl: 2,
-                                }}
-                            >
-                                {choirsPreview.map((choir) => (
-                                    <Box component="li" key={choir.id}>
-                                        {choir.name}
-                                    </Box>
-                                ))}
-
-                                {extraChoirs > 0 && (
-                                    <Box
-                                        component="li"
-                                        sx={{
-                                            color: 'var(--color-secondary-text)',
-                                        }}
-                                    >
-                                        +{extraChoirs} más…
-                                    </Box>
-                                )}
-                            </Box>
-                        )}
-                    </StatCard>
-                )}
             </Box>
 
             <Paper

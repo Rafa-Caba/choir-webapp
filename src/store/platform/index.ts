@@ -1,3 +1,7 @@
 // src/store/platform/index.ts
 
-export type PlatformViewMode = 'platform' | 'tenant';
+export {
+    useTargetChoirStore,
+    type PlatformViewMode,
+    type TargetChoirStatus,
+} from './useTargetChoirStore';

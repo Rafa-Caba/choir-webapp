@@ -1,7 +1,7 @@
 // src/components/choirs/AdminChoirList.tsx
 
 import { useEffect } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
 import {
@@ -28,11 +28,16 @@ import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
+import LoginRoundedIcon from '@mui/icons-material/LoginRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 
 import { useChoirsStore } from '../../store/admin/useChoirsStore';
+import { useAuth } from '../../context/AuthContext';
+import type { Choir } from '../../types/choir';
 
 export const AdminChoirList = () => {
+    const navigate = useNavigate();
+    const { enterTenantContext } = useAuth();
     const {
         choirs,
         currentPage,
@@ -52,10 +57,10 @@ export const AdminChoirList = () => {
     const handleDelete = async (id: string) => {
         const result = await Swal.fire({
             title: '¿Estás seguro?',
-            text: 'Esta acción eliminará el coro permanentemente.',
+            text: 'El coro quedará inactivo y ya no podrá usarse como contexto administrativo.',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Sí, eliminar',
+            confirmButtonText: 'Sí, desactivar',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#d33',
             cancelButtonColor: '#3085d6',
@@ -67,10 +72,23 @@ export const AdminChoirList = () => {
 
         try {
             await deleteChoirById(id);
-            Swal.fire('Eliminado', 'El coro ha sido eliminado.', 'success');
+            Swal.fire('Coro desactivado', 'El coro ya no está disponible para operaciones tenant.', 'success');
         } catch (error) {
             console.error(error);
-            Swal.fire('Error', 'No se pudo eliminar el coro.', 'error');
+            Swal.fire('Error', 'No se pudo desactivar el coro.', 'error');
+        }
+    };
+
+    const handleEnterChoir = (choir: Choir): void => {
+        try {
+            enterTenantContext(choir);
+            navigate('/admin');
+        } catch {
+            Swal.fire(
+                'Coro no disponible',
+                'Solo puedes administrar coros activos.',
+                'warning',
+            );
         }
     };
 
@@ -383,7 +401,26 @@ export const AdminChoirList = () => {
                                                         gap: 0.75,
                                                     }}
                                                 >
-                                                    <Tooltip title="Ver coro">
+                                                    <Tooltip title={choir.isActive ? 'Administrar este coro' : 'El coro está inactivo'}>
+                                                        <span>
+                                                            <IconButton
+                                                                aria-label={`Administrar ${choir.name}`}
+                                                                disabled={!choir.isActive}
+                                                                onClick={() => handleEnterChoir(choir)}
+                                                                sx={{
+                                                                    color: 'var(--color-button-text)',
+                                                                    backgroundColor: 'var(--color-primary)',
+                                                                    '&:hover': {
+                                                                        backgroundColor: 'var(--color-accent)',
+                                                                    },
+                                                                }}
+                                                            >
+                                                                <LoginRoundedIcon />
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+
+                                                    <Tooltip title="Ver detalles del coro">
                                                         <IconButton
                                                             component={RouterLink}
                                                             to={`/admin/choirs/view/${choir.id}`}
@@ -421,22 +458,25 @@ export const AdminChoirList = () => {
                                                         </IconButton>
                                                     </Tooltip>
 
-                                                    <Tooltip title="Eliminar coro">
-                                                        <IconButton
-                                                            aria-label={`Eliminar ${choir.name}`}
-                                                            onClick={() => handleDelete(choir.id)}
-                                                            sx={{
-                                                                color: '#dc2626',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, #dc2626 10%, transparent)',
-                                                                '&:hover': {
+                                                    <Tooltip title={choir.isActive ? 'Desactivar coro' : 'El coro ya está inactivo'}>
+                                                        <span>
+                                                            <IconButton
+                                                                aria-label={`Desactivar ${choir.name}`}
+                                                                disabled={!choir.isActive}
+                                                                onClick={() => handleDelete(choir.id)}
+                                                                sx={{
+                                                                    color: '#dc2626',
                                                                     backgroundColor:
-                                                                        'color-mix(in srgb, #dc2626 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <DeleteRoundedIcon />
-                                                        </IconButton>
+                                                                        'color-mix(in srgb, #dc2626 10%, transparent)',
+                                                                    '&:hover': {
+                                                                        backgroundColor:
+                                                                            'color-mix(in srgb, #dc2626 18%, transparent)',
+                                                                    },
+                                                                }}
+                                                            >
+                                                                <DeleteRoundedIcon />
+                                                            </IconButton>
+                                                        </span>
                                                     </Tooltip>
                                                 </Box>
                                             </TableCell>

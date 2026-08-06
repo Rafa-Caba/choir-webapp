@@ -7,7 +7,7 @@ import {
     shouldAttachTargetChoir,
 } from '../src/api/requestScope.js';
 import { resolveEntityId } from '../src/types/api/entity.js';
-import { getAuthErrorMessage } from '../src/auth/authErrorMessages';
+import { getAuthErrorMessage } from '../src/auth/authErrorMessages.js';
 
 interface TestCase {
     readonly name: string;
@@ -31,7 +31,22 @@ const testCases: TestCase[] = [
             assertEqual(permissions.canManageUsers, true);
             assertEqual(permissions.canManageContent, true);
             assertEqual(permissions.canManageSettings, true);
-            assertEqual(permissions.canViewAuditLogs, true);
+            assertEqual(permissions.canViewTenantLogs, true);
+            assertEqual(permissions.canViewPlatformLogs, true);
+        },
+    },
+    {
+        name: 'ADMIN can manage tenant resources without platform permissions',
+        run: () => {
+            const permissions = getPermissions('ADMIN');
+
+            assertEqual(permissions.isSuperAdmin, false);
+            assertEqual(permissions.canManageChoirs, false);
+            assertEqual(permissions.canManageUsers, true);
+            assertEqual(permissions.canManageContent, true);
+            assertEqual(permissions.canManageSettings, true);
+            assertEqual(permissions.canViewTenantLogs, true);
+            assertEqual(permissions.canViewPlatformLogs, false);
         },
     },
     {
@@ -44,7 +59,12 @@ const testCases: TestCase[] = [
             assertEqual(permissions.canManageUsers, false);
             assertEqual(permissions.canManageContent, true);
             assertEqual(permissions.canManageSettings, false);
-            assertEqual(permissions.canViewAuditLogs, false);
+            assertEqual(permissions.canManageInstruments, false);
+            assertEqual(permissions.canManageMembers, false);
+            assertEqual(permissions.canManageSongTypes, false);
+            assertEqual(permissions.canManageThemes, false);
+            assertEqual(permissions.canViewTenantLogs, false);
+            assertEqual(permissions.canViewPlatformLogs, false);
         },
     },
     {
@@ -53,12 +73,12 @@ const testCases: TestCase[] = [
             const permissions = getPermissions('VIEWER');
 
             assertEqual(permissions.isSuperAdmin, false);
-            assertEqual(permissions.isAdmin, false);
             assertEqual(permissions.canManageChoirs, false);
             assertEqual(permissions.canManageUsers, false);
             assertEqual(permissions.canManageContent, false);
             assertEqual(permissions.canManageSettings, false);
-            assertEqual(permissions.canViewAuditLogs, false);
+            assertEqual(permissions.canViewTenantLogs, false);
+            assertEqual(permissions.canViewPlatformLogs, false);
         },
     },
     {

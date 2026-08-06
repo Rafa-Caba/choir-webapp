@@ -14,14 +14,13 @@ import { useSongTypeStore } from './admin/useSongTypeStore';
 import { useThemeStore } from './admin/useThemeStore';
 import { useUsersStore } from './admin/useUsersStore';
 
-export const resetAuthenticatedStores = (): void => {
+export const resetTenantStores = (): void => {
     useChatStore.getState().disconnect();
     useChatStore.setState(useChatStore.getInitialState(), true);
     useChatStore.persist.clearStorage();
 
     useAnnouncementStore.setState(useAnnouncementStore.getInitialState(), true);
     useBlogStore.setState(useBlogStore.getInitialState(), true);
-    useChoirsStore.setState(useChoirsStore.getInitialState(), true);
     useGalleryStore.setState(useGalleryStore.getInitialState(), true);
     useInstrumentsStore.setState(useInstrumentsStore.getInitialState(), true);
     useLogStore.setState(useLogStore.getInitialState(), true);
@@ -31,4 +30,10 @@ export const resetAuthenticatedStores = (): void => {
     useSongTypeStore.setState(useSongTypeStore.getInitialState(), true);
     useThemeStore.setState(useThemeStore.getInitialState(), true);
     useUsersStore.setState(useUsersStore.getInitialState(), true);
+    useChoirsStore.getState().resetTenantData();
+};
+
+export const resetAuthenticatedStores = (): void => {
+    resetTenantStores();
+    useChoirsStore.setState(useChoirsStore.getInitialState(), true);
 };

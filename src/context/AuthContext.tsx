@@ -35,6 +35,7 @@ import {
 } from '../storage/sessionStorage';
 import { resetAuthenticatedStores } from '../store/resetAuthenticatedStores';
 import { useChatStore } from '../store/admin/useChatStore';
+import { useTargetChoirStore, type PlatformViewMode } from '../store/platform';
 import type {
     AccessMode,
     AuthenticatedChoir,
@@ -47,6 +48,7 @@ import type {
     User,
     UserRole,
 } from '../types/auth';
+import type { Choir } from '../types/choir';
 import { applyThemeToDocument } from '../utils/applyThemeToDocument';
 
 interface AuthContextType {
@@ -58,6 +60,11 @@ interface AuthContextType {
     readonly choir: AuthenticatedChoir | null;
     readonly role: UserRole | null;
     readonly accessMode: AccessMode | null;
+    readonly viewMode: PlatformViewMode;
+    readonly targetChoir: Choir | null;
+    readonly effectiveChoirId: string | null;
+    readonly hasTenantContext: boolean;
+    readonly targetChoirLoading: boolean;
     readonly requiresPasswordChange: boolean;
     readonly status: AuthStatus;
     readonly loading: boolean;
@@ -68,6 +75,8 @@ interface AuthContextType {
     readonly changePassword: (payload: ChangePasswordPayload) => Promise<AuthSessionResponse>;
     readonly logout: () => Promise<void>;
     readonly checkAuth: () => Promise<void>;
+    readonly enterTenantContext: (choir: Choir) => void;
+    readonly returnToPlatform: () => void;
     readonly clearError: () => void;
     readonly updateUser: (userData: User) => void;
 }
@@ -80,15 +89,11 @@ const resolveAccessMode = (
     user: AuthenticatedUser,
     requestedMode: AccessMode | null,
 ): AccessMode => {
-    if (requestedMode === 'platform' && user.role === 'SUPER_ADMIN') {
-        return 'platform';
-    }
-
-    if (requestedMode === 'tenant' && user.role !== 'SUPER_ADMIN') {
+    if (user.role !== 'SUPER_ADMIN') {
         return 'tenant';
     }
 
-    return user.role === 'SUPER_ADMIN' ? 'platform' : 'tenant';
+    return requestedMode === 'tenant' ? 'tenant' : 'platform';
 };
 
 const mergeProfile = (
@@ -118,6 +123,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
     const [errorMessage, setErrorMessage] = useState('');
     const [lastChoirCode, setLastChoirCode] = useState(readLastChoirCode());
+    const {
+        selectedChoir: targetChoir,
+        viewMode,
+        status: targetChoirStatus,
+        selectChoir,
+        restoreTargetChoir,
+        leaveTenantContext,
+        clearSelection,
+    } = useTargetChoirStore();
 
     const accessTokenRef = useRef<string | null>(initialAccessToken);
     const refreshTokenRef = useRef<string | null>(initialRefreshToken);
@@ -159,6 +173,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const clearSessionState = useCallback((redirectToLogin: boolean): void => {
         clearAuthSession();
         resetAuthenticatedStores();
+        clearSelection();
         accessTokenRef.current = null;
         refreshTokenRef.current = null;
         accessModeRef.current = null;
@@ -174,7 +189,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (redirectToLogin) {
             navigate('/auth/login', { replace: true });
         }
-    }, [navigate]);
+    }, [clearSelection, navigate]);
 
     const expireSession = useCallback(async (): Promise<void> => {
         const isProtectedLocation = typeof window !== 'undefined' && (
@@ -235,7 +250,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             const currentSession = await getCurrentSession();
             const restoredAccessToken = readAccessToken();
             const restoredRefreshToken = readRefreshToken();
-            const restoredMode = resolveAccessMode(
+            let restoredMode = resolveAccessMode(
                 currentSession.user,
                 readAccessMode(),
             );
@@ -247,15 +262,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
             accessTokenRef.current = restoredAccessToken;
             refreshTokenRef.current = restoredRefreshToken;
-            accessModeRef.current = restoredMode;
-            writeAccessMode(restoredMode);
             setAccessToken(restoredAccessToken);
             setRefreshToken(restoredRefreshToken);
             setSessionId(readSessionId());
-            setAccessMode(restoredMode);
             setChoir(currentSession.choir);
             setRequiresPasswordChange(currentSession.requiresPasswordChange);
             setUser(currentSession.user);
+
+            if (currentSession.user.role === 'SUPER_ADMIN' && restoredMode === 'tenant') {
+                const restoredTargetChoir = await restoreTargetChoir();
+
+                if (!restoredTargetChoir) {
+                    restoredMode = 'platform';
+                }
+            } else {
+                clearSelection();
+            }
+
+            accessModeRef.current = restoredMode;
+            writeAccessMode(restoredMode);
+            setAccessMode(restoredMode);
 
             const restoredUser = currentSession.requiresPasswordChange
                 ? currentSession.user
@@ -275,7 +301,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } catch {
             clearSessionState(false);
         }
-    }, [clearSessionState, connectTenantChat, hydrateProfile]);
+    }, [clearSelection, clearSessionState, connectTenantChat, hydrateProfile, restoreTargetChoir]);
 
     useEffect(() => {
         registerAuthBridge({
@@ -313,6 +339,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         };
         const session = await loginTenantUser(normalizedPayload);
 
+        clearSelection();
         resetAuthenticatedStores();
         applySessionState(session, 'tenant');
         writeLastChoirCode(normalizedPayload.choirCode);
@@ -334,7 +361,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         );
 
         return session;
-    }, [applySessionState, connectTenantChat, hydrateProfile]);
+    }, [applySessionState, clearSelection, connectTenantChat, hydrateProfile]);
 
     const loginPlatform = useCallback(async (
         payload: PlatformLoginPayload,
@@ -345,6 +372,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         };
         const session = await loginPlatformUser(normalizedPayload);
 
+        clearSelection();
         resetAuthenticatedStores();
         applySessionState(session, 'platform');
 
@@ -364,7 +392,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         );
 
         return session;
-    }, [applySessionState, connectTenantChat, hydrateProfile]);
+    }, [applySessionState, clearSelection, connectTenantChat, hydrateProfile]);
 
     const changePassword = useCallback(async (
         payload: ChangePasswordPayload,
@@ -399,6 +427,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     }, [clearSessionState]);
 
+    const enterTenantContext = useCallback((selectedChoir: Choir): void => {
+        if (user?.role !== 'SUPER_ADMIN') {
+            throw new Error('Only SUPER_ADMIN users can select a platform tenant context');
+        }
+
+        selectChoir(selectedChoir);
+        accessModeRef.current = 'tenant';
+        writeAccessMode('tenant');
+        setAccessMode('tenant');
+        setErrorMessage('');
+    }, [selectChoir, user?.role]);
+
+    const returnToPlatform = useCallback((): void => {
+        if (user?.role !== 'SUPER_ADMIN') {
+            return;
+        }
+
+        leaveTenantContext();
+        accessModeRef.current = 'platform';
+        writeAccessMode('platform');
+        setAccessMode('platform');
+        setErrorMessage('');
+    }, [leaveTenantContext, user?.role]);
+
     const clearError = useCallback((): void => {
         setErrorMessage('');
     }, []);
@@ -414,6 +466,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         });
     }, []);
 
+    const effectiveChoirId = user?.role === 'SUPER_ADMIN'
+        ? targetChoir?.id ?? null
+        : user?.choirId ?? choir?.id ?? null;
+    const hasTenantContext = Boolean(effectiveChoirId);
+    const resolvedViewMode: PlatformViewMode = user?.role === 'SUPER_ADMIN'
+        ? viewMode
+        : 'tenant';
+
     const value = useMemo<AuthContextType>(() => ({
         accessToken,
         refreshToken,
@@ -423,6 +483,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         choir,
         role: user?.role ?? null,
         accessMode,
+        viewMode: resolvedViewMode,
+        targetChoir,
+        effectiveChoirId,
+        hasTenantContext,
+        targetChoirLoading: targetChoirStatus === 'restoring',
         requiresPasswordChange,
         status,
         loading: status === 'checking',
@@ -433,6 +498,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         changePassword,
         logout,
         checkAuth: restoreSession,
+        enterTenantContext,
+        returnToPlatform,
         clearError,
         updateUser,
     }), [
@@ -441,7 +508,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         changePassword,
         choir,
         clearError,
+        effectiveChoirId,
+        enterTenantContext,
         errorMessage,
+        hasTenantContext,
         lastChoirCode,
         loginPlatform,
         loginTenant,
@@ -449,10 +519,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         refreshToken,
         requiresPasswordChange,
         restoreSession,
+        returnToPlatform,
         sessionId,
         status,
+        targetChoir,
+        targetChoirStatus,
         updateUser,
         user,
+        resolvedViewMode,
     ]);
 
     return (
@@ -470,7 +544,7 @@ export const useAuth = () => {
     }
 
     const permissions = getPermissions(context.user?.role ?? null);
-    const choirId = context.user?.choirId ?? null;
+    const choirId = context.effectiveChoirId;
 
     return {
         ...context,
