@@ -3,7 +3,6 @@
 import type { JSONContent } from '@tiptap/react';
 import { io, type Socket } from 'socket.io-client';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 
 import ENV from '../../config/env';
 import {
@@ -16,6 +15,7 @@ import {
 import type { ChatMessageDto } from '../../services/admin/chatDtos';
 import { getUserDirectory } from '../../services/admin/users';
 import { useTargetChoirStore } from '../platform/useTargetChoirStore';
+import { getActiveTenantChoirId } from '../tenantStoreScope';
 import type { User } from '../../types/auth';
 import type { ChatMessage, MessageType } from '../../types/chat';
 import { normalizeChatMessage } from '../../utils/chat/normalizeChatMessage';
@@ -136,236 +136,273 @@ const mergeMessage = (
     ));
 };
 
-export const useChatStore = create<ChatState>()(
-    persist(
-        (set, get) => ({
+const isCurrentChatChoir = (choirId: string): boolean => (
+    choirId === getActiveTenantChoirId()
+    && choirId === useChatStore.getState().currentChoirId
+);
+
+export const useChatStore = create<ChatState>((set, get) => ({
+    messages: [],
+    currentChoirId: null,
+    onlineUsers: [],
+    allUsers: [],
+    typingUsers: [],
+    connected: false,
+    socket: null,
+    loading: false,
+    isSending: false,
+    hasMoreMessages: true,
+
+    loadHistory: async () => {
+        const choirId = get().currentChoirId;
+
+        if (!choirId || choirId !== getActiveTenantChoirId()) {
+            return;
+        }
+
+        set({ loading: true, hasMoreMessages: true });
+
+        try {
+            const history = await getChatHistory(50);
+
+            if (isCurrentChatChoir(choirId)) {
+                set({ messages: history.map(normalizeChatMessage) });
+            }
+        } finally {
+            if (isCurrentChatChoir(choirId)) {
+                set({ loading: false });
+            }
+        }
+    },
+
+    loadMoreMessages: async () => {
+        const { messages, loading, currentChoirId } = get();
+
+        if (loading || messages.length === 0 || !currentChoirId) {
+            return false;
+        }
+
+        set({ loading: true });
+
+        try {
+            const oldestMessage = messages[0];
+            const moreMessages = await getChatHistory(50, oldestMessage.createdAt);
+
+            if (!isCurrentChatChoir(currentChoirId)) {
+                return false;
+            }
+
+            if (moreMessages.length === 0) {
+                set({ hasMoreMessages: false });
+                return false;
+            }
+
+            const normalizedMessages = moreMessages.map(normalizeChatMessage);
+            set((state) => ({ messages: [...normalizedMessages, ...state.messages] }));
+            return true;
+        } finally {
+            if (isCurrentChatChoir(currentChoirId)) {
+                set({ loading: false });
+            }
+        }
+    },
+
+    fetchDirectory: async () => {
+        const choirId = get().currentChoirId;
+
+        if (!choirId || choirId !== getActiveTenantChoirId()) {
+            return;
+        }
+
+        const users = await getUserDirectory();
+
+        if (isCurrentChatChoir(choirId)) {
+            set({ allUsers: users.map(mapDirectoryUser) });
+        }
+    },
+
+    connect: (token, user) => {
+        const chatChoirId = resolveChatChoirId(user);
+
+        if (!token || !chatChoirId || chatChoirId !== getActiveTenantChoirId()) {
+            get().disconnect();
+            return;
+        }
+
+        const state = get();
+
+        if (state.socket?.connected && state.currentChoirId === chatChoirId) {
+            return;
+        }
+
+        state.socket?.disconnect();
+        set({
             messages: [],
-            currentChoirId: null,
+            hasMoreMessages: true,
+            currentChoirId: chatChoirId,
             onlineUsers: [],
             allUsers: [],
             typingUsers: [],
-            connected: false,
-            socket: null,
-            loading: false,
-            isSending: false,
-            hasMoreMessages: true,
+        });
 
-            loadHistory: async () => {
-                set({ loading: true, hasMoreMessages: true });
+        const socket: ChatSocket = io(ENV.API_ORIGIN, {
+            path: '/socket.io',
+            auth: buildSocketAuth(token, user),
+            transports: ['websocket'],
+            reconnection: true,
+        });
 
-                try {
-                    const history = await getChatHistory(50);
-                    set({ messages: history.map(normalizeChatMessage) });
-                } catch (error) {
-                    console.error('Failed to load chat history', error);
-                    set({ messages: [] });
-                } finally {
-                    set({ loading: false });
-                }
-            },
+        socket.on('connect', () => {
+            if (isCurrentChatChoir(chatChoirId)) {
+                set({ connected: true });
+            } else {
+                socket.disconnect();
+            }
+        });
+        socket.on('disconnect', () => {
+            if (get().currentChoirId === chatChoirId) {
+                set({ connected: false, onlineUsers: [] });
+            }
+        });
+        socket.on('new-message', (incoming) => {
+            const message = normalizeChatMessage(incoming);
 
-            loadMoreMessages: async () => {
-                const { messages, loading } = get();
+            if (
+                !isCurrentChatChoir(chatChoirId)
+                || (message.choirId && message.choirId !== chatChoirId)
+            ) {
+                return;
+            }
 
-                if (loading || messages.length === 0) {
-                    return false;
-                }
+            set((current) => ({
+                messages: mergeMessage(current.messages, message),
+            }));
+        });
+        socket.on('message-updated', (incoming) => {
+            const message = normalizeChatMessage(incoming);
 
-                set({ loading: true });
+            if (
+                !isCurrentChatChoir(chatChoirId)
+                || (message.choirId && message.choirId !== chatChoirId)
+            ) {
+                return;
+            }
 
-                try {
-                    const oldestMessage = messages[0];
-                    const moreMessages = await getChatHistory(50, oldestMessage.createdAt);
+            set((current) => ({
+                messages: mergeMessage(current.messages, message),
+            }));
+        });
+        socket.on('online-users', (users) => {
+            if (!isCurrentChatChoir(chatChoirId)) {
+                return;
+            }
 
-                    if (moreMessages.length === 0) {
-                        set({ hasMoreMessages: false });
-                        return false;
-                    }
+            const uniqueUsers = users.filter((userEntry, index, entries) => (
+                entries.findIndex((candidate) => candidate.id === userEntry.id) === index
+            ));
+            set({ onlineUsers: [...uniqueUsers] });
+        });
+        socket.on('user-typing', ({ username, isTyping }) => {
+            if (!isCurrentChatChoir(chatChoirId)) {
+                return;
+            }
 
-                    const normalizedMessages = moreMessages.map(normalizeChatMessage);
-                    set({ messages: [...normalizedMessages, ...messages] });
-                    return true;
-                } catch (error) {
-                    console.error('Failed to load more messages', error);
-                    return false;
-                } finally {
-                    set({ loading: false });
-                }
-            },
+            set((current) => ({
+                typingUsers: isTyping
+                    ? current.typingUsers.includes(username)
+                        ? current.typingUsers
+                        : [...current.typingUsers, username]
+                    : current.typingUsers.filter((entry) => entry !== username),
+            }));
+        });
+        socket.on('session-disconnected', () => {
+            socket.disconnect();
 
-            fetchDirectory: async () => {
-                try {
-                    const users = await getUserDirectory();
-                    set({ allUsers: users.map(mapDirectoryUser) });
-                } catch (error) {
-                    console.error('Directory fetch failed', error);
-                    set({ allUsers: [] });
-                }
-            },
-
-            connect: (token, user) => {
-                const chatChoirId = resolveChatChoirId(user);
-
-                if (!token || !chatChoirId) {
-                    get().disconnect();
-                    return;
-                }
-
-                const state = get();
-
-                if (state.socket?.connected && state.currentChoirId === chatChoirId) {
-                    return;
-                }
-
-                state.socket?.disconnect();
-
-                if (state.currentChoirId !== chatChoirId) {
-                    set({
-                        messages: [],
-                        hasMoreMessages: true,
-                        currentChoirId: chatChoirId,
-                        onlineUsers: [],
-                        typingUsers: [],
-                    });
-                }
-
-                const socket: ChatSocket = io(ENV.API_ORIGIN, {
-                    path: '/socket.io',
-                    auth: buildSocketAuth(token, user),
-                    transports: ['websocket'],
-                    reconnection: true,
-                });
-
-                socket.on('connect', () => set({ connected: true }));
-                socket.on('disconnect', () => set({ connected: false, onlineUsers: [] }));
-
-                socket.on('new-message', (incoming) => {
-                    const message = normalizeChatMessage(incoming);
-
-                    if (message.choirId && message.choirId !== chatChoirId) {
-                        return;
-                    }
-
-                    set((current) => ({
-                        messages: mergeMessage(current.messages, message),
-                    }));
-                });
-
-                socket.on('message-updated', (incoming) => {
-                    const message = normalizeChatMessage(incoming);
-
-                    if (message.choirId && message.choirId !== chatChoirId) {
-                        return;
-                    }
-
-                    set((current) => ({
-                        messages: mergeMessage(current.messages, message),
-                    }));
-                });
-
-                socket.on('online-users', (users) => {
-                    const uniqueUsers = users.filter((userEntry, index, entries) => (
-                        entries.findIndex((candidate) => candidate.id === userEntry.id) === index
-                    ));
-                    set({ onlineUsers: [...uniqueUsers] });
-                });
-
-                socket.on('user-typing', ({ username, isTyping }) => {
-                    set((current) => ({
-                        typingUsers: isTyping
-                            ? current.typingUsers.includes(username)
-                                ? current.typingUsers
-                                : [...current.typingUsers, username]
-                            : current.typingUsers.filter((entry) => entry !== username),
-                    }));
-                });
-
-                socket.on('session-disconnected', () => {
-                    socket.disconnect();
-                    set({
-                        connected: false,
-                        socket: null,
-                        onlineUsers: [],
-                        typingUsers: [],
-                    });
-                });
-
-                set({ socket, currentChoirId: chatChoirId });
-            },
-
-            disconnect: () => {
-                get().socket?.disconnect();
+            if (get().currentChoirId === chatChoirId) {
                 set({
                     connected: false,
                     socket: null,
                     onlineUsers: [],
                     typingUsers: [],
-                    messages: [],
-                    currentChoirId: null,
-                    hasMoreMessages: true,
                 });
-            },
+            }
+        });
 
-            sendTyping: (isTyping) => {
-                const { socket } = get();
+        set({ socket, currentChoirId: chatChoirId });
+    },
 
-                if (socket?.connected) {
-                    socket.emit('typing', isTyping);
-                }
-            },
+    disconnect: () => {
+        get().socket?.disconnect();
+        set({
+            connected: false,
+            socket: null,
+            onlineUsers: [],
+            allUsers: [],
+            typingUsers: [],
+            messages: [],
+            currentChoirId: null,
+            hasMoreMessages: true,
+            loading: false,
+            isSending: false,
+        });
+    },
 
-            reactToMessage: async (messageId, emoji) => {
-                try {
-                    const updatedMessage = normalizeChatMessage(
-                        await toggleReaction(messageId, emoji),
-                    );
-                    set((current) => ({
-                        messages: mergeMessage(current.messages, updatedMessage),
-                    }));
-                } catch (error) {
-                    console.error('Reaction failed', error);
-                }
-            },
+    sendTyping: (isTyping) => {
+        const { socket } = get();
 
-            sendMessage: async (content, file, attachmentType, replyToId) => {
-                const { socket } = get();
+        if (socket?.connected) {
+            socket.emit('typing', isTyping);
+        }
+    },
 
-                if (!socket?.connected) {
-                    throw new Error('No active chat socket connection');
-                }
+    reactToMessage: async (messageId, emoji) => {
+        const choirId = get().currentChoirId;
 
-                set({ isSending: true });
+        if (!choirId || !isCurrentChatChoir(choirId)) {
+            return;
+        }
 
-                try {
-                    get().sendTyping(false);
-                    const upload = file && attachmentType
-                        ? await uploadChatMedia(file, attachmentType)
-                        : null;
-                    const sentMessage = normalizeChatMessage(await sendTextMessage({
-                        content,
-                        type: toMessageType(attachmentType),
-                        ...(upload ? { mediaAssetId: upload.assetId } : {}),
-                        ...(replyToId ? { replyToId } : {}),
-                    }));
+        const updatedMessage = normalizeChatMessage(
+            await toggleReaction(messageId, emoji),
+        );
 
-                    set((current) => ({
-                        messages: mergeMessage(current.messages, sentMessage),
-                    }));
-                } catch (error) {
-                    console.error('Send Error:', error);
-                    throw error;
-                } finally {
-                    set({ isSending: false });
-                }
-            },
-        }),
-        {
-            name: 'chat-storage',
-            storage: createJSONStorage(() => localStorage),
-            partialize: (state) => ({
-                messages: state.messages,
-                currentChoirId: state.currentChoirId,
-            }),
-        },
-    ),
-);
+        if (isCurrentChatChoir(choirId)) {
+            set((current) => ({
+                messages: mergeMessage(current.messages, updatedMessage),
+            }));
+        }
+    },
+
+    sendMessage: async (content, file, attachmentType, replyToId) => {
+        const { socket, currentChoirId } = get();
+
+        if (!socket?.connected || !currentChoirId || !isCurrentChatChoir(currentChoirId)) {
+            throw new Error('No active chat socket connection');
+        }
+
+        set({ isSending: true });
+
+        try {
+            get().sendTyping(false);
+            const upload = file && attachmentType
+                ? await uploadChatMedia(file, attachmentType)
+                : null;
+            const sentMessage = normalizeChatMessage(await sendTextMessage({
+                content,
+                type: toMessageType(attachmentType),
+                ...(upload ? { mediaAssetId: upload.assetId } : {}),
+                ...(replyToId ? { replyToId } : {}),
+            }));
+
+            if (isCurrentChatChoir(currentChoirId)) {
+                set((current) => ({
+                    messages: mergeMessage(current.messages, sentMessage),
+                }));
+            }
+        } finally {
+            if (isCurrentChatChoir(currentChoirId)) {
+                set({ isSending: false });
+            }
+        }
+    },
+}));

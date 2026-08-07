@@ -14,6 +14,13 @@ import {
     normalizeChoirCode,
 } from '../src/utils/choirCode.js';
 import { buildPublicApiPath } from '../src/services/public/publicPath.js';
+import {
+    beginTenantStoreRequest,
+    invalidateTenantStoreRequests,
+    isTenantStoreRequestCurrent,
+    registerTenantStoreScope,
+} from '../src/store/tenantStoreScope.js';
+import { isValidTemporaryPassword } from '../src/users/temporaryPassword.js';
 
 interface TestCase {
     readonly name: string;
@@ -151,6 +158,34 @@ const testCases: TestCase[] = [
                 buildPublicApiPath('Coro-A', '/announcements/'),
                 '/public/coro-a/announcements',
             );
+        },
+    },
+
+    {
+        name: 'tenant request scopes reject stale responses after a choir change',
+        run: () => {
+            let activeChoirId: string | null = 'choir-a';
+            registerTenantStoreScope(() => activeChoirId);
+            const scope = beginTenantStoreRequest();
+
+            assertEqual(scope.choirId, 'choir-a');
+            assertEqual(isTenantStoreRequestCurrent(scope), true);
+
+            activeChoirId = 'choir-b';
+            assertEqual(isTenantStoreRequestCurrent(scope), false);
+
+            activeChoirId = 'choir-a';
+            invalidateTenantStoreRequests();
+            assertEqual(isTenantStoreRequestCurrent(scope), false);
+        },
+    },
+    {
+        name: 'temporary passwords follow the API policy',
+        run: () => {
+            assertEqual(isValidTemporaryPassword('Choirs!2026Secure'), true);
+            assertEqual(isValidTemporaryPassword('short'), false);
+            assertEqual(isValidTemporaryPassword('choirs-password-2026'), false);
+            assertEqual(isValidTemporaryPassword('CHOIRS!PASSWORD2026'), false);
         },
     },
     {

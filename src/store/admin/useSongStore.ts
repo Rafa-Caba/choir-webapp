@@ -8,74 +8,131 @@ import {
     getSongById,
     updateSong,
 } from '../../services/admin/song';
+import {
+    beginTenantStoreRequest,
+    isTenantStoreRequestCurrent,
+} from '../tenantStoreScope';
 import type { CreateSongPayload, Song } from '../../types/song';
 
 interface AdminSongState {
-    songs: Song[];
-    loading: boolean;
-    fetchSongs: () => Promise<void>;
-    getSong: (id: string) => Promise<Song | null>;
-    addSong: (payload: CreateSongPayload) => Promise<void>;
-    editSong: (id: string, payload: Partial<CreateSongPayload>) => Promise<void>;
-    removeSong: (id: string) => Promise<void>;
+    readonly songs: Song[];
+    readonly currentSong: Song | null;
+    readonly activeChoirId: string | null;
+    readonly loading: boolean;
+    readonly fetchSongs: () => Promise<void>;
+    readonly getSong: (id: string) => Promise<Song | null>;
+    readonly addSong: (payload: CreateSongPayload) => Promise<Song>;
+    readonly editSong: (id: string, payload: Partial<CreateSongPayload>) => Promise<Song>;
+    readonly removeSong: (id: string) => Promise<void>;
 }
 
-export const useSongStore = create<AdminSongState>((set, get) => ({
+const upsertSong = (songs: readonly Song[], nextSong: Song): Song[] => (
+    songs.some((song) => song.id === nextSong.id)
+        ? songs.map((song) => song.id === nextSong.id ? nextSong : song)
+        : [nextSong, ...songs]
+);
+
+export const useSongStore = create<AdminSongState>((set) => ({
     songs: [],
+    currentSong: null,
+    activeChoirId: null,
     loading: false,
 
     fetchSongs: async () => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            const data = await getAllSongs();
-            set({ songs: data });
-        } catch (error) {
-            console.error(error);
+            const songs = await getAllSongs();
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ songs });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     getSong: async (id) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            return await getSongById(id);
-        } catch (error) {
-            console.error(error);
+            const song = await getSongById(id);
+
+            if (!isTenantStoreRequestCurrent(scope)) {
+                return null;
+            }
+
+            set((state) => ({
+                songs: upsertSong(state.songs, song),
+                currentSong: song,
+            }));
+            return song;
+        } catch {
             return null;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     addSong: async (payload) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await createSong(payload);
-            await get().fetchSongs();
+            const song = await createSong(payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    songs: upsertSong(state.songs, song),
+                    currentSong: song,
+                }));
+            }
+
+            return song;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     editSong: async (id, payload) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await updateSong(id, payload);
-            await get().fetchSongs();
+            const song = await updateSong(id, payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    songs: upsertSong(state.songs, song),
+                    currentSong: song,
+                }));
+            }
+
+            return song;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     removeSong: async (id) => {
+        const scope = beginTenantStoreRequest();
         await deleteSong(id);
-        set((state) => ({
-            songs: state.songs.filter((song) => song.id !== id),
-        }));
+
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                songs: state.songs.filter((song) => song.id !== id),
+                currentSong: state.currentSong?.id === id ? null : state.currentSong,
+            }));
+        }
     },
 }));

@@ -8,77 +8,134 @@ import {
     getThemeById,
     updateTheme,
 } from '../../services/admin/theme';
+import {
+    beginTenantStoreRequest,
+    isTenantStoreRequestCurrent,
+} from '../tenantStoreScope';
 import type { CreateThemePayload, Theme } from '../../types/theme';
 
 interface AdminThemeState {
-    themes: Theme[];
-    loading: boolean;
-    fetchThemes: () => Promise<void>;
-    getTheme: (id: string) => Promise<Theme | null>;
-    addTheme: (payload: CreateThemePayload) => Promise<void>;
-    editTheme: (
+    readonly themes: Theme[];
+    readonly currentTheme: Theme | null;
+    readonly activeChoirId: string | null;
+    readonly loading: boolean;
+    readonly fetchThemes: () => Promise<void>;
+    readonly getTheme: (id: string) => Promise<Theme | null>;
+    readonly addTheme: (payload: CreateThemePayload) => Promise<Theme>;
+    readonly editTheme: (
         id: string,
         payload: Partial<CreateThemePayload>,
-    ) => Promise<void>;
-    removeTheme: (id: string) => Promise<void>;
+    ) => Promise<Theme>;
+    readonly removeTheme: (id: string) => Promise<void>;
 }
 
-export const useThemeStore = create<AdminThemeState>((set, get) => ({
+const upsertTheme = (themes: readonly Theme[], nextTheme: Theme): Theme[] => (
+    themes.some((theme) => theme.id === nextTheme.id)
+        ? themes.map((theme) => theme.id === nextTheme.id ? nextTheme : theme)
+        : [...themes, nextTheme]
+);
+
+export const useThemeStore = create<AdminThemeState>((set) => ({
     themes: [],
+    currentTheme: null,
+    activeChoirId: null,
     loading: false,
 
     fetchThemes: async () => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            const data = await getAllThemes();
-            set({ themes: data });
-        } catch (error) {
-            console.error(error);
+            const themes = await getAllThemes();
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ themes });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     getTheme: async (id) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            return await getThemeById(id);
-        } catch (error) {
-            console.error(error);
+            const theme = await getThemeById(id);
+
+            if (!isTenantStoreRequestCurrent(scope)) {
+                return null;
+            }
+
+            set((state) => ({
+                themes: upsertTheme(state.themes, theme),
+                currentTheme: theme,
+            }));
+            return theme;
+        } catch {
             return null;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     addTheme: async (payload) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await createTheme(payload);
-            await get().fetchThemes();
+            const theme = await createTheme(payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    themes: upsertTheme(state.themes, theme),
+                    currentTheme: theme,
+                }));
+            }
+
+            return theme;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     editTheme: async (id, payload) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await updateTheme(id, payload);
-            await get().fetchThemes();
+            const theme = await updateTheme(id, payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    themes: upsertTheme(state.themes, theme),
+                    currentTheme: theme,
+                }));
+            }
+
+            return theme;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     removeTheme: async (id) => {
+        const scope = beginTenantStoreRequest();
         await deleteTheme(id);
-        set((state) => ({
-            themes: state.themes.filter((theme) => theme.id !== id),
-        }));
+
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                themes: state.themes.filter((theme) => theme.id !== id),
+                currentTheme: state.currentTheme?.id === id ? null : state.currentTheme,
+            }));
+        }
     },
 }));

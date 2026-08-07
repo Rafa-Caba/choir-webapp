@@ -1,95 +1,132 @@
+// src/store/admin/useInstrumentsStore.ts
+
 import { create } from 'zustand';
 import {
-    getInstruments,
+    deleteInstrument,
     getInstrumentById,
+    getInstruments,
     saveInstrument,
-    deleteInstrument
 } from '../../services/admin/instruments';
-import type { Instrument, CreateInstrumentPayload } from '../../types/instrument';
+import {
+    beginTenantStoreRequest,
+    isTenantStoreRequestCurrent,
+} from '../tenantStoreScope';
+import type { CreateInstrumentPayload, Instrument } from '../../types/instrument';
 
 interface InstrumentsState {
-    instruments: Instrument[];
-    loading: boolean;
-
-    // Actions
-    fetchInstruments: () => Promise<void>;
-    fetchInstrumentById: (id: string) => Promise<Instrument | null>;
-    saveInstrumentAction: (
+    readonly instruments: Instrument[];
+    readonly currentInstrument: Instrument | null;
+    readonly activeChoirId: string | null;
+    readonly loading: boolean;
+    readonly fetchInstruments: () => Promise<void>;
+    readonly fetchInstrumentById: (id: string) => Promise<Instrument | null>;
+    readonly saveInstrumentAction: (
         payload: CreateInstrumentPayload,
         file?: File,
-        id?: string
+        id?: string,
     ) => Promise<Instrument>;
-    deleteInstrumentById: (id: string) => Promise<void>;
-
-    getInstrumentFromState: (id: string) => Instrument | undefined;
+    readonly deleteInstrumentById: (id: string) => Promise<void>;
+    readonly getInstrumentFromState: (id: string) => Instrument | undefined;
 }
+
+const upsertInstrument = (
+    instruments: readonly Instrument[],
+    nextInstrument: Instrument,
+): Instrument[] => (
+    instruments.some((instrument) => instrument.id === nextInstrument.id)
+        ? instruments.map((instrument) => (
+            instrument.id === nextInstrument.id ? nextInstrument : instrument
+        ))
+        : [...instruments, nextInstrument]
+);
 
 export const useInstrumentsStore = create<InstrumentsState>((set, get) => ({
     instruments: [],
+    currentInstrument: null,
+    activeChoirId: null,
     loading: false,
 
     fetchInstruments: async () => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
+
         try {
-            const data = await getInstruments();
-            set({ instruments: data });
-        } catch (error) {
-            console.error('Error fetching instruments:', error);
+            const instruments = await getInstruments();
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ instruments });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
-    fetchInstrumentById: async (id: string) => {
-        const existing = get().instruments.find(inst => inst.id === id);
-        if (existing) return existing;
+    fetchInstrumentById: async (id) => {
+        const scope = beginTenantStoreRequest();
+        const existing = get().activeChoirId === scope.choirId
+            ? get().instruments.find((instrument) => instrument.id === id)
+            : undefined;
+
+        if (existing) {
+            set({ currentInstrument: existing });
+            return existing;
+        }
 
         try {
             const instrument = await getInstrumentById(id);
-            const current = get().instruments;
-            const alreadyInList = current.some(inst => inst.id === instrument.id);
 
-            set({
-                instruments: alreadyInList
-                    ? current.map(inst =>
-                        inst.id === instrument.id ? instrument : inst
-                    )
-                    : [...current, instrument]
-            });
+            if (!isTenantStoreRequestCurrent(scope)) {
+                return null;
+            }
 
+            set((state) => ({
+                instruments: upsertInstrument(state.instruments, instrument),
+                currentInstrument: instrument,
+                activeChoirId: scope.choirId,
+            }));
             return instrument;
-        } catch (error) {
-            console.error('Error fetching instrument by id:', error);
+        } catch {
             return null;
         }
     },
 
     saveInstrumentAction: async (payload, file, id) => {
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
+
         try {
             const instrument = await saveInstrument(payload, file, id);
 
-            await get().fetchInstruments();
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    instruments: upsertInstrument(state.instruments, instrument),
+                    currentInstrument: instrument,
+                }));
+            }
 
             return instrument;
-        } catch (error) {
-            console.error('Error saving instrument:', error);
-            throw error;
+        } finally {
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
-    deleteInstrumentById: async (id: string) => {
-        try {
-            await deleteInstrument(id);
-            set(state => ({
-                instruments: state.instruments.filter(inst => inst.id !== id)
+    deleteInstrumentById: async (id) => {
+        const scope = beginTenantStoreRequest();
+        await deleteInstrument(id);
+
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                instruments: state.instruments.filter((instrument) => instrument.id !== id),
+                currentInstrument: state.currentInstrument?.id === id
+                    ? null
+                    : state.currentInstrument,
             }));
-        } catch (error) {
-            console.error('Error deleting instrument:', error);
-            throw error;
         }
     },
 
-    getInstrumentFromState: (id: string) => {
-        return get().instruments.find(inst => inst.id === id);
-    }
+    getInstrumentFromState: (id) => get().instruments.find((instrument) => instrument.id === id),
 }));

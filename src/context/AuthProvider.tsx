@@ -31,6 +31,7 @@ import {
     writeLastChoirCode,
 } from '../storage/sessionStorage';
 import { resetAuthenticatedStores } from '../store/resetAuthenticatedStores';
+import { registerTenantStoreScope } from '../store/tenantStoreScope';
 import { useChatStore } from '../store/admin/useChatStore';
 import { useTargetChoirStore, type PlatformViewMode } from '../store/platform';
 import type {
@@ -101,6 +102,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const accessTokenRef = useRef<string | null>(initialAccessToken);
     const refreshTokenRef = useRef<string | null>(initialRefreshToken);
     const accessModeRef = useRef<AccessMode | null>(readAccessMode());
+    const effectiveChoirIdRef = useRef<string | null>(null);
     const restoreStartedRef = useRef(false);
 
     const setTokenState = useCallback((session: AuthSessionResponse): void => {
@@ -434,6 +436,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const effectiveChoirId = user?.role === 'SUPER_ADMIN'
         ? targetChoir?.id ?? null
         : user?.choirId ?? choir?.id ?? null;
+
+    effectiveChoirIdRef.current = effectiveChoirId;
+    registerTenantStoreScope(() => effectiveChoirIdRef.current);
+
     const hasTenantContext = Boolean(effectiveChoirId);
     const resolvedViewMode: PlatformViewMode = user?.role === 'SUPER_ADMIN'
         ? viewMode

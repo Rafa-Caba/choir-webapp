@@ -31,6 +31,10 @@ import { useInstrumentsStore } from '../../../store/admin/useInstrumentsStore';
 import { InstrumentPickerModal } from '../../../components/components-admin/instruments/InstrumentPickerModal';
 import type { Instrument } from '../../../types/instrument';
 import type { SaveUserPayload, TenantUserRole } from '../../../services/admin/users';
+import {
+    isValidTemporaryPassword,
+    TEMPORARY_PASSWORD_HELP_TEXT,
+} from '../../../users/temporaryPassword';
 
 interface UserFormState {
     name: string;
@@ -43,13 +47,6 @@ interface UserFormState {
     instrumentLabel: string;
     bio: string;
     voice: boolean;
-}
-
-
-interface UserInstrumentFields {
-    instrumentId?: string;
-    instrumentLabel?: string;
-    instrument?: string;
 }
 
 const roleOptions: Array<{ value: TenantUserRole; label: string; description: string }> = [
@@ -83,7 +80,7 @@ export const UserForm = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const { saveUserAction, getUserById, fetchUsers } = useUsersStore();
+    const { saveUserAction, fetchUser } = useUsersStore();
 
     const isEdit = Boolean(id);
 
@@ -127,18 +124,18 @@ export const UserForm = () => {
                 return;
             }
 
-            let userToEdit = getUserById(id);
+            const userToEdit = await fetchUser(id);
 
             if (!userToEdit) {
-                await fetchUsers();
-                userToEdit = getUserById(id);
-            }
-
-            if (!userToEdit) {
+                await Swal.fire(
+                    'Usuario no encontrado',
+                    'No fue posible cargar el usuario dentro del coro activo.',
+                    'error',
+                );
+                navigate('/admin/users', { replace: true });
                 return;
             }
 
-            const userWithInstrument = userToEdit as typeof userToEdit & UserInstrumentFields;
             const safeRole = isTenantUserRole(userToEdit.role) ? userToEdit.role : 'VIEWER';
 
             setFormData({
@@ -148,8 +145,8 @@ export const UserForm = () => {
                 password: '',
                 confirmPassword: '',
                 role: safeRole,
-                instrumentId: userWithInstrument.instrumentId || '',
-                instrumentLabel: userWithInstrument.instrumentLabel || userWithInstrument.instrument || '',
+                instrumentId: userToEdit.instrumentId || '',
+                instrumentLabel: userToEdit.instrumentLabel || userToEdit.instrument || '',
                 bio: userToEdit.bio || '',
                 voice: userToEdit.voice || false,
             });
@@ -158,7 +155,7 @@ export const UserForm = () => {
         };
 
         void loadData();
-    }, [id, isEdit, getUserById, fetchUsers]);
+    }, [fetchUser, id, isEdit, navigate]);
 
     useEffect(() => {
         return () => {
@@ -236,13 +233,13 @@ export const UserForm = () => {
             return;
         }
 
-        if (!isEdit && !formData.password) {
-            Swal.fire('Error', 'La contraseña es obligatoria para nuevos usuarios', 'error');
+        if (formData.password && formData.password !== formData.confirmPassword) {
+            Swal.fire('Error', 'Las contraseñas no coinciden', 'error');
             return;
         }
 
-        if (formData.password && formData.password !== formData.confirmPassword) {
-            Swal.fire('Error', 'Las contraseñas no coinciden', 'error');
+        if (formData.password && !isValidTemporaryPassword(formData.password)) {
+            Swal.fire('Contraseña inválida', TEMPORARY_PASSWORD_HELP_TEXT, 'warning');
             return;
         }
 
@@ -257,21 +254,45 @@ export const UserForm = () => {
             instrumentLabel: formData.instrumentLabel,
             bio: formData.bio,
             voice: formData.voice,
-            ...(formData.password ? { password: formData.password } : {}),
+            ...(!isEdit && formData.password
+                ? { temporaryPassword: formData.password }
+                : {}),
         };
 
         try {
-            await saveUserAction(payload, file, id);
+            const result = await saveUserAction(payload, file, id);
 
-            Swal.fire(
-                'Éxito',
-                `Usuario ${isEdit ? 'actualizado' : 'creado'} correctamente`,
-                'success',
-            );
+            if (result.operation === 'created') {
+                await Swal.fire({
+                    title: 'Usuario creado',
+                    text: 'Esta contraseña temporal solo se mostrará una vez. Cópiala y compártela de forma segura.',
+                    icon: 'success',
+                    input: 'text',
+                    inputValue: result.temporaryPassword,
+                    inputAttributes: {
+                        readonly: 'true',
+                        autocapitalize: 'off',
+                    },
+                    confirmButtonText: 'Copiar y continuar',
+                    showCancelButton: true,
+                    cancelButtonText: 'Continuar sin copiar',
+                    heightAuto: false,
+                    preConfirm: async () => {
+                        await navigator.clipboard.writeText(result.temporaryPassword);
+                    },
+                });
+            } else {
+                await Swal.fire(
+                    'Usuario actualizado',
+                    result.sessionsRevoked
+                        ? 'Los cambios fueron guardados y las sesiones anteriores fueron revocadas.'
+                        : 'Los cambios fueron guardados correctamente.',
+                    'success',
+                );
+            }
 
             navigate('/admin/users');
-        } catch (error) {
-            console.error(error);
+        } catch {
             Swal.fire('Error', 'No se pudo guardar el usuario', 'error');
         } finally {
             setLoading(false);
@@ -635,37 +656,43 @@ export const UserForm = () => {
                                 minRows={3}
                             />
 
-                            <Box
-                                sx={{
-                                    display: 'grid',
-                                    gridTemplateColumns: {
-                                        xs: '1fr',
-                                        md: 'repeat(2, minmax(0, 1fr))',
-                                    },
-                                    gap: 1.5,
-                                }}
-                            >
-                                <TextField
-                                    type="password"
-                                    name="password"
-                                    label={isEdit ? 'Nueva contraseña (opcional)' : 'Contraseña *'}
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    placeholder={isEdit ? '••••••' : ''}
-                                    disabled={loading}
-                                    required={!isEdit}
-                                />
+                            {!isEdit && (
+                                <Box
+                                    sx={{
+                                        display: 'grid',
+                                        gridTemplateColumns: {
+                                            xs: '1fr',
+                                            md: 'repeat(2, minmax(0, 1fr))',
+                                        },
+                                        gap: 1.5,
+                                    }}
+                                >
+                                    <TextField
+                                        type="password"
+                                        name="password"
+                                        label="Contraseña temporal (opcional)"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        disabled={loading}
+                                        helperText={TEMPORARY_PASSWORD_HELP_TEXT}
+                                        slotProps={{
+                                            htmlInput: {
+                                                minLength: 12,
+                                                maxLength: 128,
+                                            },
+                                        }}
+                                    />
 
-                                <TextField
-                                    type="password"
-                                    name="confirmPassword"
-                                    label="Confirmar contraseña"
-                                    value={formData.confirmPassword}
-                                    onChange={handleChange}
-                                    disabled={loading}
-                                    required={!isEdit || formData.password.length > 0}
-                                />
-                            </Box>
+                                    <TextField
+                                        type="password"
+                                        name="confirmPassword"
+                                        label="Confirmar contraseña temporal"
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange}
+                                        disabled={loading}
+                                    />
+                                </Box>
+                            )}
                         </Box>
 
                         <Paper

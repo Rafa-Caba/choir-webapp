@@ -14,6 +14,16 @@ export type GalleryFlag =
 
 export type GalleryFlags = Partial<Record<GalleryFlag, boolean>>;
 
+const GALLERY_FLAGS: readonly GalleryFlag[] = [
+    'imageStart',
+    'imageTopBar',
+    'imageUs',
+    'imageLogo',
+    'imageGallery',
+    'imageLeftMenu',
+    'imageRightMenu',
+];
+
 const createGalleryFormData = (
     payload: Omit<CreateGalleryPayload, 'file'>,
     file?: File,
@@ -71,11 +81,26 @@ export const removeImage = async (id: string): Promise<void> => {
 export const setFlags = async (
     id: string,
     flags: GalleryFlags,
-): Promise<void> => {
-    for (const [field, value] of Object.entries(flags)) {
-        await api.patch(
+): Promise<GalleryImage> => {
+    let updatedImage: GalleryImage | null = null;
+
+    for (const field of GALLERY_FLAGS) {
+        const value = flags[field];
+
+        if (typeof value !== 'boolean') {
+            continue;
+        }
+
+        const { data } = await api.patch<GalleryImage>(
             `/gallery/mark/${encodeURIComponent(field)}/${encodeURIComponent(id)}`,
             { value },
         );
+        updatedImage = data;
     }
+
+    if (!updatedImage) {
+        return getGalleryImageById(id);
+    }
+
+    return updatedImage;
 };

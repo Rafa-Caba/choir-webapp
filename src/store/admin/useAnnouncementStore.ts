@@ -8,82 +8,132 @@ import {
     getAnnouncementById,
     updateAnnouncement,
 } from '../../services/admin/announcement';
+import {
+    beginTenantStoreRequest,
+    isTenantStoreRequestCurrent,
+} from '../tenantStoreScope';
 import type {
     Announcement,
     CreateAnnouncementPayload,
 } from '../../types/annoucement';
 
 interface AdminAnnouncementState {
-    announcements: Announcement[];
-    loading: boolean;
-    fetchAnnouncements: () => Promise<void>;
-    getAnnouncement: (id: string) => Promise<Announcement | null>;
-    addAnnouncement: (payload: CreateAnnouncementPayload) => Promise<void>;
-    editAnnouncement: (
+    readonly announcements: Announcement[];
+    readonly currentAnnouncement: Announcement | null;
+    readonly activeChoirId: string | null;
+    readonly loading: boolean;
+    readonly fetchAnnouncements: () => Promise<void>;
+    readonly getAnnouncement: (id: string) => Promise<Announcement | null>;
+    readonly addAnnouncement: (payload: CreateAnnouncementPayload) => Promise<Announcement>;
+    readonly editAnnouncement: (
         id: string,
         payload: Partial<CreateAnnouncementPayload>,
-    ) => Promise<void>;
-    removeAnnouncement: (id: string) => Promise<void>;
+    ) => Promise<Announcement>;
+    readonly removeAnnouncement: (id: string) => Promise<void>;
 }
 
-export const useAnnouncementStore = create<AdminAnnouncementState>((set, get) => ({
+export const useAnnouncementStore = create<AdminAnnouncementState>((set) => ({
     announcements: [],
+    currentAnnouncement: null,
+    activeChoirId: null,
     loading: false,
 
     fetchAnnouncements: async () => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            const data = await getAdminAnnouncements();
-            set({ announcements: data });
-        } catch (error) {
-            console.error(error);
+            const announcements = await getAdminAnnouncements();
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ announcements });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     getAnnouncement: async (id) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            return await getAnnouncementById(id);
-        } catch (error) {
-            console.error(error);
+            const announcement = await getAnnouncementById(id);
+
+            if (!isTenantStoreRequestCurrent(scope)) {
+                return null;
+            }
+
+            set({ currentAnnouncement: announcement });
+            return announcement;
+        } catch {
             return null;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     addAnnouncement: async (payload) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await createAnnouncement(payload);
-            await get().fetchAnnouncements();
+            const announcement = await createAnnouncement(payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    announcements: [announcement, ...state.announcements],
+                    currentAnnouncement: announcement,
+                }));
+            }
+
+            return announcement;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     editAnnouncement: async (id, payload) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await updateAnnouncement(id, payload);
-            await get().fetchAnnouncements();
+            const announcement = await updateAnnouncement(id, payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    announcements: state.announcements.map((item) => (
+                        item.id === announcement.id ? announcement : item
+                    )),
+                    currentAnnouncement: announcement,
+                }));
+            }
+
+            return announcement;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     removeAnnouncement: async (id) => {
+        const scope = beginTenantStoreRequest();
         await deleteAnnouncement(id);
-        set((state) => ({
-            announcements: state.announcements.filter(
-                (announcement) => announcement.id !== id,
-            ),
-        }));
+
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                announcements: state.announcements.filter((item) => item.id !== id),
+                currentAnnouncement: state.currentAnnouncement?.id === id
+                    ? null
+                    : state.currentAnnouncement,
+            }));
+        }
     },
 }));

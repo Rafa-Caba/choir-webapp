@@ -13,12 +13,12 @@ import { useSongStore } from './admin/useSongStore';
 import { useSongTypeStore } from './admin/useSongTypeStore';
 import { useThemeStore } from './admin/useThemeStore';
 import { useUsersStore } from './admin/useUsersStore';
+import { invalidateTenantStoreRequests } from './tenantStoreScope';
 
 export const resetTenantStores = (): void => {
+    invalidateTenantStoreRequests();
     useChatStore.getState().disconnect();
     useChatStore.setState(useChatStore.getInitialState(), true);
-    useChatStore.persist.clearStorage();
-
     useAnnouncementStore.setState(useAnnouncementStore.getInitialState(), true);
     useBlogStore.setState(useBlogStore.getInitialState(), true);
     useGalleryStore.setState(useGalleryStore.getInitialState(), true);
@@ -30,7 +30,6 @@ export const resetTenantStores = (): void => {
     useSongTypeStore.setState(useSongTypeStore.getInitialState(), true);
     useThemeStore.setState(useThemeStore.getInitialState(), true);
     useUsersStore.setState(useUsersStore.getInitialState(), true);
-    useChoirsStore.getState().resetTenantData();
 };
 
 export const resetAuthenticatedStores = (): void => {

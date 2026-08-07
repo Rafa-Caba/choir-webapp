@@ -10,105 +10,161 @@ import {
     updateGalleryImage,
     type GalleryFlags,
 } from '../../services/admin/gallery';
+import {
+    beginTenantStoreRequest,
+    isTenantStoreRequestCurrent,
+} from '../tenantStoreScope';
 import type {
     CreateGalleryPayload,
     GalleryImage,
 } from '../../types/gallery';
 
 interface AdminGalleryState {
-    images: GalleryImage[];
-    loading: boolean;
-    currentImage: GalleryImage | null;
-    fetchGallery: () => Promise<void>;
-    getImage: (id: string) => Promise<GalleryImage | null>;
-    editImage: (id: string, formData: FormData) => Promise<void>;
-    uploadImage: (payload: CreateGalleryPayload) => Promise<void>;
-    deleteImage: (id: string) => Promise<void>;
-    updateFlags: (id: string, flags: GalleryFlags) => Promise<void>;
+    readonly images: GalleryImage[];
+    readonly loading: boolean;
+    readonly currentImage: GalleryImage | null;
+    readonly activeChoirId: string | null;
+    readonly fetchGallery: () => Promise<void>;
+    readonly getImage: (id: string) => Promise<GalleryImage | null>;
+    readonly editImage: (id: string, formData: FormData) => Promise<GalleryImage>;
+    readonly uploadImage: (payload: CreateGalleryPayload) => Promise<GalleryImage>;
+    readonly deleteImage: (id: string) => Promise<void>;
+    readonly updateFlags: (id: string, flags: GalleryFlags) => Promise<void>;
 }
 
-const resetExclusiveFlags = (
-    image: GalleryImage,
-    flags: GalleryFlags,
-): GalleryImage => ({
-    ...image,
-    imageStart: flags.imageStart ? false : image.imageStart,
-    imageLogo: flags.imageLogo ? false : image.imageLogo,
-    imageTopBar: flags.imageTopBar ? false : image.imageTopBar,
-    imageUs: flags.imageUs ? false : image.imageUs,
-});
+const upsertImage = (
+    images: readonly GalleryImage[],
+    nextImage: GalleryImage,
+): GalleryImage[] => (
+    images.some((image) => image.id === nextImage.id)
+        ? images.map((image) => image.id === nextImage.id ? nextImage : image)
+        : [nextImage, ...images]
+);
 
-export const useGalleryStore = create<AdminGalleryState>((set, get) => ({
+export const useGalleryStore = create<AdminGalleryState>((set) => ({
     images: [],
     loading: false,
     currentImage: null,
+    activeChoirId: null,
 
     fetchGallery: async () => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            const data = await getAdminGallery();
-            set({ images: data });
-        } catch (error) {
-            console.error(error);
+            const images = await getAdminGallery();
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ images });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     getImage: async (id) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
             const image = await getGalleryImageById(id);
+
+            if (!isTenantStoreRequestCurrent(scope)) {
+                return null;
+            }
+
             set({ currentImage: image });
             return image;
-        } catch (error) {
-            console.error(error);
+        } catch {
             return null;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     editImage: async (id, formData) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await updateGalleryImage(id, formData);
-            await get().fetchGallery();
+            const image = await updateGalleryImage(id, formData);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    images: upsertImage(state.images, image),
+                    currentImage: image,
+                }));
+            }
+
+            return image;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     uploadImage: async (payload) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await addImage(payload);
-            await get().fetchGallery();
+            const image = await addImage(payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    images: upsertImage(state.images, image),
+                    currentImage: image,
+                }));
+            }
+
+            return image;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     deleteImage: async (id) => {
+        const scope = beginTenantStoreRequest();
         await removeImage(id);
-        set((state) => ({
-            images: state.images.filter((image) => image.id !== id),
-        }));
+
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                images: state.images.filter((image) => image.id !== id),
+                currentImage: state.currentImage?.id === id ? null : state.currentImage,
+            }));
+        }
     },
 
     updateFlags: async (id, flags) => {
-        set((state) => ({
-            images: state.images.map((image) => (
-                image.id === id
-                    ? { ...image, ...flags }
-                    : resetExclusiveFlags(image, flags)
-            )),
-        }));
+        const scope = beginTenantStoreRequest();
+        const image = await setFlags(id, flags);
 
-        await setFlags(id, flags);
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                images: state.images.map((item) => {
+                    if (item.id === image.id) {
+                        return image;
+                    }
+
+                    return {
+                        ...item,
+                        imageStart: image.imageStart ? false : item.imageStart,
+                        imageLogo: image.imageLogo ? false : item.imageLogo,
+                        imageTopBar: image.imageTopBar ? false : item.imageTopBar,
+                        imageUs: image.imageUs ? false : item.imageUs,
+                        imageLeftMenu: image.imageLeftMenu ? false : item.imageLeftMenu,
+                        imageRightMenu: image.imageRightMenu ? false : item.imageRightMenu,
+                    };
+                }),
+                currentImage: state.currentImage?.id === image.id ? image : state.currentImage,
+            }));
+        }
     },
 }));

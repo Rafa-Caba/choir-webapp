@@ -22,6 +22,8 @@
     "src/auth/permissions.ts",
     "src/types/api/entity.ts",
     "src/utils/choirCode.ts",
-    "src/services/public/publicPath.ts"
+    "src/services/public/publicPath.ts",
+    "src/store/tenantStoreScope.ts",
+    "src/users/temporaryPassword.ts"
   ]
 }

@@ -2,7 +2,7 @@
 
 import api from '../../api/axios';
 import type { TipTapContent } from '../../types/annoucement';
-import type { BlogPost, CreateBlogPayload } from '../../types/blog';
+import type { BlogComment, BlogPost, CreateBlogPayload } from '../../types/blog';
 
 const createBlogFormData = (
     payload: Partial<CreateBlogPayload>,
@@ -55,13 +55,25 @@ export const deletePost = async (id: string): Promise<void> => {
     await api.delete(`/blog/${encodeURIComponent(id)}`);
 };
 
-export const likePost = async (id: string): Promise<void> => {
-    await api.put(`/blog/${encodeURIComponent(id)}/like`);
+export interface BlogLikeResponse {
+    readonly likes: number;
+    readonly liked: boolean;
+}
+
+export const likePost = async (id: string): Promise<BlogLikeResponse> => {
+    const { data } = await api.put<BlogLikeResponse>(
+        `/blog/${encodeURIComponent(id)}/like`,
+    );
+    return data;
 };
 
 export const commentPost = async (
     id: string,
     text: TipTapContent,
-): Promise<void> => {
-    await api.post(`/blog/${encodeURIComponent(id)}/comment`, { text });
+): Promise<BlogComment> => {
+    const { data } = await api.post<BlogComment>(
+        `/blog/${encodeURIComponent(id)}/comment`,
+        { text },
+    );
+    return data;
 };

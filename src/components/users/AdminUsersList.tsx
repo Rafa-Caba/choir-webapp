@@ -1,9 +1,8 @@
 // src/components/users/AdminUsersList.tsx
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import Swal from 'sweetalert2';
-
 import {
     Avatar,
     Box,
@@ -23,176 +22,107 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
-
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
+import LockResetRoundedIcon from '@mui/icons-material/LockResetRounded';
+import PauseCircleOutlineRoundedIcon from '@mui/icons-material/PauseCircleOutlineRounded';
 import PeopleRoundedIcon from '@mui/icons-material/PeopleRounded';
+import PlayCircleOutlineRoundedIcon from '@mui/icons-material/PlayCircleOutlineRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
+import { useAuth } from '../../context/AuthContext';
 import { useUsersStore } from '../../store/admin/useUsersStore';
-import type { UserRole } from '../../types/auth';
+import type { User, UserRole } from '../../types/auth';
+import { TemporaryPasswordDialog } from './TemporaryPasswordDialog';
 
 interface SectionHeaderProps {
-    title: string;
-    subtitle: string;
-    icon: ReactNode;
-    action?: ReactNode;
+    readonly title: string;
+    readonly subtitle: string;
+    readonly icon: ReactNode;
+    readonly action?: ReactNode;
 }
 
-const getRoleChipColor = (role: UserRole) => {
-    if (role === 'SUPER_ADMIN') {
-        return {
-            label: 'Super Admin',
-            backgroundColor: '#111827',
-            color: '#ffffff',
-        };
-    }
-
-    if (role === 'ADMIN') {
-        return {
-            label: 'Admin',
-            backgroundColor: '#dc2626',
-            color: '#ffffff',
-        };
-    }
-
-    if (role === 'EDITOR') {
-        return {
-            label: 'Editor',
-            backgroundColor: '#f59e0b',
-            color: '#111827',
-        };
-    }
-
-    if (role === 'USER') {
-        return {
-            label: 'Usuario',
-            backgroundColor: '#2563eb',
-            color: '#ffffff',
-        };
-    }
-
-    return {
-        label: 'Viewer',
-        backgroundColor: 'color-mix(in srgb, var(--color-card) 74%, var(--color-border) 26%)',
-        color: 'var(--color-text)',
+const getRolePresentation = (role: UserRole) => {
+    const presentations: Record<UserRole, {
+        readonly label: string;
+        readonly backgroundColor: string;
+        readonly color: string;
+    }> = {
+        SUPER_ADMIN: { label: 'Super Admin', backgroundColor: '#111827', color: '#ffffff' },
+        ADMIN: { label: 'Admin', backgroundColor: '#dc2626', color: '#ffffff' },
+        EDITOR: { label: 'Editor', backgroundColor: '#f59e0b', color: '#111827' },
+        USER: { label: 'Usuario', backgroundColor: '#2563eb', color: '#ffffff' },
+        VIEWER: {
+            label: 'Viewer',
+            backgroundColor: 'color-mix(in srgb, var(--color-card) 74%, var(--color-border) 26%)',
+            color: 'var(--color-text)',
+        },
     };
+
+    return presentations[role];
 };
 
-const SectionHeader = ({ title, subtitle, icon, action }: SectionHeaderProps) => {
-    return (
-        <Paper
-            elevation={0}
-            sx={{
-                flexShrink: 0,
-                p: {
-                    xs: 1.5,
-                    md: 2,
-                },
-                borderRadius: 2,
-                background:
-                    'linear-gradient(145deg, color-mix(in srgb, var(--color-card) 88%, var(--color-primary) 12%) 0%, color-mix(in srgb, var(--color-card) 78%, transparent) 100%)',
-                border: '1px solid color-mix(in srgb, var(--color-border) 38%, transparent)',
-                boxShadow:
-                    'inset 0 1px 0 color-mix(in srgb, var(--color-button-text) 14%, transparent), 0 12px 38px rgba(15, 23, 42, 0.06)',
-                color: 'var(--color-text)',
-                overflow: 'hidden',
-            }}
-        >
-            <Box
-                sx={{
-                    display: 'flex',
-                    flexDirection: {
-                        xs: 'column',
-                        sm: 'row',
-                    },
-                    alignItems: {
-                        xs: 'stretch',
-                        sm: 'center',
-                    },
-                    justifyContent: 'space-between',
-                    gap: 1.5,
-                }}
-            >
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: {
-                            xs: 'center',
-                            sm: 'flex-start',
-                        },
-                        gap: 1.25,
-                        textAlign: {
-                            xs: 'center',
-                            sm: 'left',
-                        },
-                    }}
-                >
-                    <Box
-                        sx={{
-                            width: 44,
-                            height: 44,
-                            display: 'grid',
-                            placeItems: 'center',
-                            borderRadius: 1.5,
-                            color: 'var(--color-button-text)',
-                            background:
-                                'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%)',
-                            boxShadow:
-                                '0 10px 24px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.24)',
-                            flexShrink: 0,
-                        }}
-                    >
-                        {icon}
-                    </Box>
+const formatDate = (value: string | null | undefined): string => {
+    if (!value) {
+        return 'Sin acceso';
+    }
 
-                    <Box sx={{ minWidth: 0 }}>
-                        <Typography
-                            component="h1"
-                            sx={{
-                                m: 0,
-                                fontSize: {
-                                    xs: '1.55rem',
-                                    md: '2rem',
-                                },
-                                fontWeight: 950,
-                                lineHeight: 1.1,
-                            }}
-                        >
-                            {title}
-                        </Typography>
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? 'Sin acceso'
+        : new Intl.DateTimeFormat('es-MX', {
+            dateStyle: 'short',
+            timeStyle: 'short',
+        }).format(date);
+};
 
-                        <Typography
-                            sx={{
-                                mt: 0.4,
-                                color: 'var(--color-secondary-text)',
-                                fontWeight: 800,
-                                fontSize: '0.9rem',
-                            }}
-                        >
-                            {subtitle}
-                        </Typography>
-                    </Box>
+const SectionHeader = ({ title, subtitle, icon, action }: SectionHeaderProps) => (
+    <Paper
+        elevation={0}
+        sx={{
+            p: { xs: 1.5, md: 2 },
+            borderRadius: 2,
+            background: 'linear-gradient(145deg, color-mix(in srgb, var(--color-card) 88%, var(--color-primary) 12%) 0%, color-mix(in srgb, var(--color-card) 78%, transparent) 100%)',
+            border: '1px solid color-mix(in srgb, var(--color-border) 38%, transparent)',
+            color: 'var(--color-text)',
+        }}
+    >
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: 1.5, color: 'var(--color-button-text)', background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%)' }}>
+                    {icon}
                 </Box>
-
-                {action}
+                <Box>
+                    <Typography component="h1" sx={{ fontSize: { xs: '1.55rem', md: '2rem' }, fontWeight: 950 }}>
+                        {title}
+                    </Typography>
+                    <Typography sx={{ color: 'var(--color-secondary-text)', fontWeight: 800 }}>
+                        {subtitle}
+                    </Typography>
+                </Box>
             </Box>
-        </Paper>
-    );
-};
+            {action}
+        </Box>
+    </Paper>
+);
 
 export const AdminUsersList = () => {
+    const { user: currentUser } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
-
+    const [temporaryPassword, setTemporaryPassword] = useState('');
+    const [temporaryPasswordUser, setTemporaryPasswordUser] = useState('');
     const {
         users,
         currentPage,
         totalPages,
+        totalUsers,
         loading,
+        mutationUserId,
         fetchUsers,
         deleteUserById,
+        changeUserActiveStatus,
+        resetUserPasswordAction,
         setCurrentPage,
     } = useUsersStore();
 
@@ -200,16 +130,30 @@ export const AdminUsersList = () => {
         void fetchUsers(currentPage);
     }, [currentPage, fetchUsers]);
 
-    const handleDelete = async (id: string) => {
+    const filteredUsers = useMemo(() => {
+        const searchValue = searchTerm.trim().toLocaleLowerCase('es-MX');
+
+        if (!searchValue) {
+            return users;
+        }
+
+        return users.filter((userItem) => (
+            userItem.name.toLocaleLowerCase('es-MX').includes(searchValue)
+            || userItem.username.toLocaleLowerCase('es-MX').includes(searchValue)
+            || userItem.email.toLocaleLowerCase('es-MX').includes(searchValue)
+        ));
+    }, [searchTerm, users]);
+
+    const handleDelete = async (targetUser: User): Promise<void> => {
         const result = await Swal.fire({
-            title: '¿Estás seguro?',
-            text: 'Esta acción eliminará al usuario permanentemente.',
+            title: '¿Eliminar usuario?',
+            text: `Esta acción eliminará permanentemente a ${targetUser.name}.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            heightAuto: false,
         });
 
         if (!result.isConfirmed) {
@@ -217,92 +161,102 @@ export const AdminUsersList = () => {
         }
 
         try {
-            await deleteUserById(id);
-            Swal.fire('Eliminado', 'El usuario ha sido eliminado.', 'success');
+            await deleteUserById(targetUser.id);
+            await Swal.fire('Eliminado', 'El usuario fue eliminado.', 'success');
         } catch {
-            Swal.fire('Error', 'No se pudo eliminar el usuario.', 'error');
+            await Swal.fire(
+                'No fue posible eliminarlo',
+                'Revisa que no sea el último administrador activo del coro.',
+                'error',
+            );
         }
     };
 
-    const filteredUsers = users.filter((userItem) => {
-        const searchValue = searchTerm.toLowerCase();
+    const handleStatusChange = async (targetUser: User): Promise<void> => {
+        const nextStatus = !targetUser.isActive;
+        const verb = nextStatus ? 'reactivar' : 'suspender';
+        const result = await Swal.fire({
+            title: `¿${nextStatus ? 'Reactivar' : 'Suspender'} usuario?`,
+            text: nextStatus
+                ? `${targetUser.name} recuperará el acceso al coro.`
+                : `${targetUser.name} perderá sus sesiones y acceso activo.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: `Sí, ${verb}`,
+            cancelButtonText: 'Cancelar',
+            heightAuto: false,
+        });
 
-        return (
-            userItem.name.toLowerCase().includes(searchValue) ||
-            userItem.username.toLowerCase().includes(searchValue) ||
-            userItem.email.toLowerCase().includes(searchValue)
-        );
-    });
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        try {
+            await changeUserActiveStatus(targetUser.id, nextStatus);
+            await Swal.fire(
+                nextStatus ? 'Usuario reactivado' : 'Usuario suspendido',
+                nextStatus
+                    ? 'El usuario puede iniciar sesión nuevamente.'
+                    : 'Sus sesiones activas fueron revocadas.',
+                'success',
+            );
+        } catch {
+            await Swal.fire(
+                'No fue posible actualizarlo',
+                'Revisa que no sea el último administrador activo del coro.',
+                'error',
+            );
+        }
+    };
+
+    const handleResetPassword = async (targetUser: User): Promise<void> => {
+        const result = await Swal.fire({
+            title: 'Restablecer contraseña',
+            text: `Se generará una contraseña temporal para ${targetUser.name} y sus sesiones serán revocadas.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Generar contraseña',
+            cancelButtonText: 'Cancelar',
+            heightAuto: false,
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        try {
+            const response = await resetUserPasswordAction(targetUser.id);
+            setTemporaryPasswordUser(targetUser.name);
+            setTemporaryPassword(response.temporaryPassword);
+        } catch {
+            await Swal.fire('Error', 'No se pudo restablecer la contraseña.', 'error');
+        }
+    };
 
     return (
-        <Box
-            component="section"
-            sx={{
-                width: '100%',
-                minHeight: 0,
-                height: '100%',
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-                overflow: 'hidden',
-            }}
-        >
+        <Box component="section" sx={{ width: '100%', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
             <SectionHeader
                 title="Gestión de Usuarios"
-                subtitle="Administra perfiles, roles, instrumentos y accesos del coro."
+                subtitle={`${totalUsers} usuario${totalUsers === 1 ? '' : 's'} en el coro activo.`}
                 icon={<PeopleRoundedIcon />}
-                action={
-                    <Button
-                        component={RouterLink}
-                        to="/admin/users/new"
-                        variant="contained"
-                        startIcon={<AddRoundedIcon />}
-                        sx={{
-                            borderRadius: 1.5,
-                            px: 2,
-                            py: 0.9,
-                            fontWeight: 950,
-                        }}
-                    >
-                        Nuevo Usuario
+                action={(
+                    <Button component={RouterLink} to="/admin/users/new" variant="contained" startIcon={<AddRoundedIcon />} sx={{ borderRadius: 1.5, fontWeight: 950 }}>
+                        Nuevo usuario
                     </Button>
-                }
+                )}
             />
 
-            <Paper
-                elevation={0}
-                sx={{
-                    flex: 1,
-                    minHeight: 0,
-                    p: {
-                        xs: 1.25,
-                        md: 2,
-                    },
-                    borderRadius: 2,
-                    background:
-                        'linear-gradient(145deg, color-mix(in srgb, var(--color-card) 86%, var(--color-primary) 14%) 0%, color-mix(in srgb, var(--color-card) 76%, transparent) 100%)',
-                    border: '1px solid color-mix(in srgb, var(--color-border) 38%, transparent)',
-                    boxShadow:
-                        'inset 0 1px 0 color-mix(in srgb, var(--color-button-text) 14%, transparent), 0 12px 42px rgba(15, 23, 42, 0.06)',
-                    color: 'var(--color-text)',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1.5,
-                }}
-            >
+            <Paper elevation={0} sx={{ flex: 1, minHeight: 0, p: { xs: 1.25, md: 2 }, borderRadius: 2, backgroundColor: 'var(--color-card)', border: '1px solid color-mix(in srgb, var(--color-border) 38%, transparent)', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 <TextField
-                    type="text"
                     label="Buscar"
-                    placeholder="Buscar por nombre, usuario o correo..."
+                    placeholder="Nombre, usuario o correo"
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     slotProps={{
                         input: {
                             startAdornment: (
                                 <InputAdornment position="start">
-                                    <SearchRoundedIcon sx={{ color: 'var(--color-primary)' }} />
+                                    <SearchRoundedIcon />
                                 </InputAdornment>
                             ),
                         },
@@ -310,267 +264,107 @@ export const AdminUsersList = () => {
                 />
 
                 {loading ? (
-                    <Box
-                        sx={{
-                            flex: 1,
-                            minHeight: 320,
-                            display: 'grid',
-                            placeItems: 'center',
-                        }}
-                    >
-                        <Box sx={{ textAlign: 'center' }}>
-                            <CircularProgress />
-                            <Typography sx={{ mt: 2, fontWeight: 800 }}>
-                                Cargando usuarios...
-                            </Typography>
-                        </Box>
+                    <Box sx={{ flex: 1, display: 'grid', placeItems: 'center', minHeight: 260 }}>
+                        <CircularProgress />
                     </Box>
                 ) : (
-                    <TableContainer
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            overflow: 'auto',
-                            borderRadius: 1.5,
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            '&::-webkit-scrollbar': {
-                                display: 'none',
-                            },
-                        }}
-                    >
-                        <Table stickyHeader>
+                    <TableContainer sx={{ flex: 1 }}>
+                        <Table stickyHeader size="small">
                             <TableHead>
                                 <TableRow>
-                                    {['Avatar', 'Nombre', 'Usuario', 'Rol', 'Instrumento', 'Acciones'].map((label) => (
-                                        <TableCell
-                                            key={label}
-                                            align={label === 'Acciones' ? 'right' : 'left'}
-                                            sx={{
-                                                backgroundColor:
-                                                    'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                                color: 'var(--color-text)',
-                                                fontWeight: 950,
-                                                borderBottom:
-                                                    '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                                whiteSpace: 'nowrap',
-                                            }}
-                                        >
-                                            {label}
-                                        </TableCell>
-                                    ))}
+                                    <TableCell>Usuario</TableCell>
+                                    <TableCell>Rol</TableCell>
+                                    <TableCell>Estado</TableCell>
+                                    <TableCell>Contraseña</TableCell>
+                                    <TableCell>Último acceso</TableCell>
+                                    <TableCell align="right">Acciones</TableCell>
                                 </TableRow>
                             </TableHead>
-
                             <TableBody>
-                                {filteredUsers.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={6}
-                                            sx={{
-                                                py: 5,
-                                                textAlign: 'center',
-                                                color: 'var(--color-secondary-text)',
-                                                fontWeight: 800,
-                                                borderBottom: 'none',
-                                            }}
-                                        >
-                                            No se encontraron usuarios.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredUsers.map((userItem) => {
-                                        const roleChip = getRoleChipColor(userItem.role);
+                                {filteredUsers.map((userItem) => {
+                                    const role = getRolePresentation(userItem.role);
+                                    const busy = mutationUserId === userItem.id;
+                                    const isSelf = currentUser?.id === userItem.id;
 
-                                        return (
-                                            <TableRow
-                                                key={userItem.id}
-                                                hover
-                                                sx={{
-                                                    '&:hover': {
-                                                        backgroundColor:
-                                                            'color-mix(in srgb, var(--color-primary) 8%, transparent)',
-                                                    },
-                                                }}
-                                            >
-                                                <TableCell
-                                                    sx={{
-                                                        width: 86,
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    }}
-                                                >
-                                                    <Avatar
-                                                        src={userItem.imageUrl || '/default-avatar.png'}
-                                                        alt={userItem.username}
-                                                        sx={{
-                                                            width: 50,
-                                                            height: 50,
-                                                            bgcolor: 'var(--color-primary)',
-                                                            color: 'var(--color-button-text)',
-                                                            fontWeight: 900,
-                                                            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)',
-                                                        }}
-                                                    >
-                                                        {userItem.name?.slice(0, 1).toUpperCase() || 'U'}
-                                                    </Avatar>
-                                                </TableCell>
-
-                                                <TableCell
-                                                    sx={{
-                                                        color: 'var(--color-text)',
-                                                        fontWeight: 950,
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                        minWidth: 190,
-                                                    }}
-                                                >
-                                                    {userItem.name}
-                                                </TableCell>
-
-                                                <TableCell
-                                                    sx={{
-                                                        color: 'var(--color-secondary-text)',
-                                                        fontWeight: 850,
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                        minWidth: 160,
-                                                    }}
-                                                >
-                                                    @{userItem.username}
-                                                </TableCell>
-
-                                                <TableCell
-                                                    sx={{
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    }}
-                                                >
-                                                    <Chip
-                                                        size="small"
-                                                        label={roleChip.label}
-                                                        sx={{
-                                                            fontWeight: 950,
-                                                            backgroundColor: roleChip.backgroundColor,
-                                                            color: roleChip.color,
-                                                        }}
-                                                    />
-                                                </TableCell>
-
-                                                <TableCell
-                                                    sx={{
-                                                        color: 'var(--color-text)',
-                                                        fontWeight: 800,
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                        minWidth: 150,
-                                                    }}
-                                                >
-                                                    {userItem.instrumentLabel || userItem.instrument || '-'}
-                                                </TableCell>
-
-                                                <TableCell
-                                                    align="right"
-                                                    sx={{
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            display: 'flex',
-                                                            justifyContent: 'flex-end',
-                                                            gap: 0.75,
-                                                        }}
-                                                    >
-                                                        <Tooltip title="Editar usuario">
-                                                            <IconButton
-                                                                component={RouterLink}
-                                                                to={`/admin/users/edit/${userItem.id}`}
-                                                                aria-label={`Editar ${userItem.name}`}
-                                                                sx={{
-                                                                    color: 'var(--color-primary)',
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                                                                    '&:hover': {
-                                                                        backgroundColor:
-                                                                            'color-mix(in srgb, var(--color-primary) 18%, transparent)',
-                                                                    },
-                                                                }}
-                                                            >
+                                    return (
+                                        <TableRow key={userItem.id} hover>
+                                            <TableCell>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Avatar src={userItem.imageUrl || undefined}>{userItem.name.slice(0, 1).toUpperCase()}</Avatar>
+                                                    <Box>
+                                                        <Typography sx={{ fontWeight: 950 }}>{userItem.name}</Typography>
+                                                        <Typography sx={{ color: 'var(--color-secondary-text)', fontSize: '0.82rem' }}>@{userItem.username} · {userItem.email}</Typography>
+                                                    </Box>
+                                                </Box>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip size="small" label={role.label} sx={{ fontWeight: 900, backgroundColor: role.backgroundColor, color: role.color }} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip size="small" label={userItem.isActive ? 'Activo' : 'Suspendido'} color={userItem.isActive ? 'success' : 'default'} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip size="small" label={userItem.mustChangePassword ? 'Cambio pendiente' : 'Configurada'} color={userItem.mustChangePassword ? 'warning' : 'success'} variant="outlined" />
+                                            </TableCell>
+                                            <TableCell>{formatDate(userItem.lastAccess)}</TableCell>
+                                            <TableCell align="right">
+                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                                                    <Tooltip title="Editar">
+                                                        <span>
+                                                            <IconButton component={RouterLink} to={`/admin/users/edit/${userItem.id}`} disabled={busy} aria-label={`Editar ${userItem.name}`}>
                                                                 <EditRoundedIcon />
                                                             </IconButton>
-                                                        </Tooltip>
-
-                                                        <Tooltip title="Eliminar usuario">
-                                                            <IconButton
-                                                                aria-label={`Eliminar ${userItem.name}`}
-                                                                onClick={() => handleDelete(userItem.id)}
-                                                                sx={{
-                                                                    color: '#dc2626',
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, #dc2626 10%, transparent)',
-                                                                    '&:hover': {
-                                                                        backgroundColor:
-                                                                            'color-mix(in srgb, #dc2626 18%, transparent)',
-                                                                    },
-                                                                }}
-                                                            >
+                                                        </span>
+                                                    </Tooltip>
+                                                    <Tooltip title="Restablecer contraseña">
+                                                        <span>
+                                                            <IconButton disabled={busy} onClick={() => { void handleResetPassword(userItem); }} aria-label={`Restablecer contraseña de ${userItem.name}`}>
+                                                                <LockResetRoundedIcon />
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                    <Tooltip title={userItem.isActive ? 'Suspender' : 'Reactivar'}>
+                                                        <span>
+                                                            <IconButton disabled={busy || isSelf} onClick={() => { void handleStatusChange(userItem); }} aria-label={`${userItem.isActive ? 'Suspender' : 'Reactivar'} ${userItem.name}`}>
+                                                                {userItem.isActive ? <PauseCircleOutlineRoundedIcon /> : <PlayCircleOutlineRoundedIcon />}
+                                                            </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+                                                    <Tooltip title="Eliminar">
+                                                        <span>
+                                                            <IconButton disabled={busy || isSelf} onClick={() => { void handleDelete(userItem); }} aria-label={`Eliminar ${userItem.name}`} sx={{ color: '#dc2626' }}>
                                                                 <DeleteRoundedIcon />
                                                             </IconButton>
-                                                        </Tooltip>
-                                                    </Box>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })
-                                )}
+                                                        </span>
+                                                    </Tooltip>
+                                                </Box>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     </TableContainer>
                 )}
 
                 {totalPages > 1 && (
-                    <Box
-                        sx={{
-                            flexShrink: 0,
-                            display: 'flex',
-                            flexDirection: 'row',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            gap: 1,
-                        }}
-                    >
-                        <Button
-                            variant="outlined"
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(currentPage - 1)}
-                            sx={{
-                                borderRadius: 1.5,
-                                fontWeight: 950,
-                            }}
-                        >
-                            Anterior
-                        </Button>
-
-                        <Typography sx={{ fontWeight: 900 }}>
-                            Página {currentPage} de {totalPages}
-                        </Typography>
-
-                        <Button
-                            variant="outlined"
-                            disabled={currentPage === totalPages}
-                            onClick={() => setCurrentPage(currentPage + 1)}
-                            sx={{
-                                borderRadius: 1.5,
-                                fontWeight: 950,
-                            }}
-                        >
-                            Siguiente
-                        </Button>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
+                        <Button variant="outlined" disabled={currentPage <= 1} onClick={() => setCurrentPage(currentPage - 1)}>Anterior</Button>
+                        <Typography sx={{ fontWeight: 900 }}>Página {currentPage} de {totalPages}</Typography>
+                        <Button variant="outlined" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Siguiente</Button>
                     </Box>
                 )}
             </Paper>
+
+            <TemporaryPasswordDialog
+                open={Boolean(temporaryPassword)}
+                password={temporaryPassword}
+                title={`Contraseña temporal de ${temporaryPasswordUser}`}
+                onClose={() => {
+                    setTemporaryPassword('');
+                    setTemporaryPasswordUser('');
+                }}
+            />
         </Box>
     );
 };

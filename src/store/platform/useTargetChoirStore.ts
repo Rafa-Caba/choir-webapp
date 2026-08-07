@@ -74,6 +74,7 @@ export const useTargetChoirStore = create<TargetChoirState>((set, get) => ({
             const choir = await getChoirById(targetChoirId);
 
             if (!choir.isActive) {
+                resetTenantStores();
                 clearPersistedSelection();
                 set({
                     selectedChoir: null,
@@ -92,6 +93,7 @@ export const useTargetChoirStore = create<TargetChoirState>((set, get) => ({
             });
             return choir;
         } catch {
+            resetTenantStores();
             clearPersistedSelection();
             set({
                 selectedChoir: null,

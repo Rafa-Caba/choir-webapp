@@ -10,104 +10,183 @@ import {
     likePost,
     updatePost,
 } from '../../services/admin/blog';
+import {
+    beginTenantStoreRequest,
+    isTenantStoreRequestCurrent,
+} from '../tenantStoreScope';
 import type { TipTapContent } from '../../types/annoucement';
 import type { BlogPost, CreateBlogPayload } from '../../types/blog';
 
 interface AdminBlogState {
-    posts: BlogPost[];
-    currentPost: BlogPost | null;
-    loading: boolean;
-    error: string | null;
-    fetchPosts: () => Promise<void>;
-    getPost: (id: string) => Promise<BlogPost | null>;
-    addPost: (payload: CreateBlogPayload) => Promise<void>;
-    editPost: (id: string, payload: Partial<CreateBlogPayload>) => Promise<void>;
-    removePost: (id: string) => Promise<void>;
-    toggleLike: (id: string) => Promise<void>;
-    addComment: (id: string, text: TipTapContent) => Promise<void>;
+    readonly posts: BlogPost[];
+    readonly currentPost: BlogPost | null;
+    readonly activeChoirId: string | null;
+    readonly loading: boolean;
+    readonly error: string | null;
+    readonly fetchPosts: () => Promise<void>;
+    readonly getPost: (id: string) => Promise<BlogPost | null>;
+    readonly addPost: (payload: CreateBlogPayload) => Promise<BlogPost>;
+    readonly editPost: (id: string, payload: Partial<CreateBlogPayload>) => Promise<BlogPost>;
+    readonly removePost: (id: string) => Promise<void>;
+    readonly toggleLike: (id: string) => Promise<void>;
+    readonly addComment: (id: string, text: TipTapContent) => Promise<void>;
 }
 
 const getErrorMessage = (error: Error, fallbackMessage: string): string => (
     error.message.trim() || fallbackMessage
 );
 
-export const useBlogStore = create<AdminBlogState>((set, get) => ({
+export const useBlogStore = create<AdminBlogState>((set) => ({
     posts: [],
     currentPost: null,
+    activeChoirId: null,
     loading: false,
     error: null,
 
     fetchPosts: async () => {
-        set({ loading: true, error: null });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, error: null, activeChoirId: scope.choirId });
 
         try {
-            const data = await getAllPosts();
-            set({ posts: data });
+            const posts = await getAllPosts();
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ posts });
+            }
         } catch (error) {
-            set({
-                error: error instanceof Error
-                    ? getErrorMessage(error, 'Error fetching posts')
-                    : 'Error fetching posts',
-            });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({
+                    error: error instanceof Error
+                        ? getErrorMessage(error, 'Error fetching posts')
+                        : 'Error fetching posts',
+                });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     getPost: async (id) => {
-        set({ loading: true, error: null });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, error: null, activeChoirId: scope.choirId });
 
         try {
             const post = await getPostById(id);
+
+            if (!isTenantStoreRequestCurrent(scope)) {
+                return null;
+            }
+
             set({ currentPost: post });
             return post;
         } catch (error) {
-            set({
-                error: error instanceof Error
-                    ? getErrorMessage(error, 'Error fetching post')
-                    : 'Error fetching post',
-            });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({
+                    error: error instanceof Error
+                        ? getErrorMessage(error, 'Error fetching post')
+                        : 'Error fetching post',
+                });
+            }
             return null;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     addPost: async (payload) => {
-        set({ loading: true, error: null });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, error: null, activeChoirId: scope.choirId });
 
         try {
-            await createPost(payload);
-            await get().fetchPosts();
+            const post = await createPost(payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    posts: [post, ...state.posts],
+                    currentPost: post,
+                }));
+            }
+
+            return post;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     editPost: async (id, payload) => {
-        set({ loading: true, error: null });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, error: null, activeChoirId: scope.choirId });
 
         try {
-            await updatePost(id, payload);
-            await get().fetchPosts();
+            const post = await updatePost(id, payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    posts: state.posts.map((item) => item.id === post.id ? post : item),
+                    currentPost: post,
+                }));
+            }
+
+            return post;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     removePost: async (id) => {
+        const scope = beginTenantStoreRequest();
         await deletePost(id);
-        set((state) => ({
-            posts: state.posts.filter((post) => post.id !== id),
-        }));
+
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                posts: state.posts.filter((post) => post.id !== id),
+                currentPost: state.currentPost?.id === id ? null : state.currentPost,
+            }));
+        }
     },
 
     toggleLike: async (id) => {
-        await likePost(id);
+        const scope = beginTenantStoreRequest();
+        const result = await likePost(id);
+
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                posts: state.posts.map((post) => (
+                    post.id === id ? { ...post, likes: result.likes } : post
+                )),
+                currentPost: state.currentPost?.id === id
+                    ? { ...state.currentPost, likes: result.likes }
+                    : state.currentPost,
+            }));
+        }
     },
 
     addComment: async (id, text) => {
-        await commentPost(id, text);
-        await get().getPost(id);
+        const scope = beginTenantStoreRequest();
+        const comment = await commentPost(id, text);
+
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                posts: state.posts.map((post) => (
+                    post.id === id
+                        ? { ...post, comments: [...post.comments, comment] }
+                        : post
+                )),
+                currentPost: state.currentPost?.id === id
+                    ? {
+                        ...state.currentPost,
+                        comments: [...state.currentPost.comments, comment],
+                    }
+                    : state.currentPost,
+            }));
+        }
     },
 }));

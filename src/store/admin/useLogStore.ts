@@ -2,12 +2,17 @@
 
 import { create } from 'zustand';
 import { getLogs, getUserLogs } from '../../services/admin/log';
+import {
+    beginTenantStoreRequest,
+    isTenantStoreRequestCurrent,
+} from '../tenantStoreScope';
 import type { Log, LogFilters } from '../../types/log';
 
 interface LogState {
     readonly logs: Log[];
     readonly visibleLogs: Log[];
     readonly userLogs: Log[];
+    readonly activeChoirId: string | null;
     readonly currentPage: number;
     readonly totalPages: number;
     readonly totalLogs: number;
@@ -49,6 +54,7 @@ export const useLogStore = create<LogState>((set, get) => ({
     logs: [],
     visibleLogs: [],
     userLogs: [],
+    activeChoirId: null,
     currentPage: 1,
     totalPages: 1,
     totalLogs: 0,
@@ -56,44 +62,49 @@ export const useLogStore = create<LogState>((set, get) => ({
     searchQuery: '',
 
     fetchLogs: async (page = 1, filters = {}) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
             const data = await getLogs(page, 20, filters);
-            const searchQuery = get().searchQuery;
 
-            set({
-                logs: data.logs,
-                visibleLogs: filterLogs(data.logs, searchQuery),
-                currentPage: data.currentPage,
-                totalPages: data.totalPages,
-                totalLogs: data.totalLogs,
-            });
-        } catch (error) {
-            console.error(error);
-            set({ logs: [], visibleLogs: [] });
+            if (isTenantStoreRequestCurrent(scope)) {
+                const searchQuery = get().searchQuery;
+                set({
+                    logs: data.logs,
+                    visibleLogs: filterLogs(data.logs, searchQuery),
+                    currentPage: data.currentPage,
+                    totalPages: data.totalPages,
+                    totalLogs: data.totalLogs,
+                });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
-    fetchUserLogs: async (userId: string) => {
-        set({ loading: true });
+    fetchUserLogs: async (userId) => {
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
             const data = await getUserLogs(userId, 1, 50);
-            set({ userLogs: data.logs });
-        } catch (error) {
-            console.error(error);
-            set({ userLogs: [] });
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ userLogs: data.logs });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
-    setPage: (page: number) => set({ currentPage: page }),
+    setPage: (page) => set({ currentPage: page }),
 
-    searchLogsText: (query: string) => {
+    searchLogsText: (query) => {
         const logs = get().logs;
         set({
             searchQuery: query,

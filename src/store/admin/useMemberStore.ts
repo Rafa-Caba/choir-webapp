@@ -9,28 +9,36 @@ import {
     searchMembers,
     updateMember,
 } from '../../services/admin/member';
+import {
+    beginTenantStoreRequest,
+    isTenantStoreRequestCurrent,
+} from '../tenantStoreScope';
 import type { CreateMemberPayload, Member } from '../../types/member';
 
 interface AdminMemberState {
-    members: Member[];
-    currentPage: number;
-    totalPages: number;
-    loading: boolean;
-    isSearching: boolean;
-    fetchMembers: (page?: number) => Promise<void>;
-    searchMembersByText: (query: string) => Promise<void>;
-    setCurrentPage: (page: number) => void;
-    getMember: (id: string) => Promise<Member | null>;
-    addMember: (payload: CreateMemberPayload) => Promise<void>;
-    editMember: (
+    readonly members: Member[];
+    readonly currentMember: Member | null;
+    readonly activeChoirId: string | null;
+    readonly currentPage: number;
+    readonly totalPages: number;
+    readonly loading: boolean;
+    readonly isSearching: boolean;
+    readonly fetchMembers: (page?: number) => Promise<void>;
+    readonly searchMembersByText: (query: string) => Promise<void>;
+    readonly setCurrentPage: (page: number) => void;
+    readonly getMember: (id: string) => Promise<Member | null>;
+    readonly addMember: (payload: CreateMemberPayload) => Promise<Member>;
+    readonly editMember: (
         id: string,
         payload: Partial<CreateMemberPayload>,
-    ) => Promise<void>;
-    removeMember: (id: string) => Promise<void>;
+    ) => Promise<Member>;
+    readonly removeMember: (id: string) => Promise<void>;
 }
 
 export const useMemberStore = create<AdminMemberState>((set, get) => ({
     members: [],
+    currentMember: null,
+    activeChoirId: null,
     currentPage: 1,
     totalPages: 1,
     loading: false,
@@ -39,20 +47,27 @@ export const useMemberStore = create<AdminMemberState>((set, get) => ({
     setCurrentPage: (page) => set({ currentPage: page }),
 
     fetchMembers: async (page = 1) => {
-        set({ loading: true, isSearching: false });
+        const scope = beginTenantStoreRequest();
+        set({
+            loading: true,
+            isSearching: false,
+            activeChoirId: scope.choirId,
+        });
 
         try {
             const response = await getPaginatedMembers(page);
-            set({
-                members: response.members,
-                currentPage: response.currentPage,
-                totalPages: response.totalPages,
-            });
-        } catch (error) {
-            console.error('Failed to fetch members', error);
-            set({ members: [] });
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({
+                    members: response.members,
+                    currentPage: response.currentPage,
+                    totalPages: response.totalPages,
+                });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
@@ -62,60 +77,101 @@ export const useMemberStore = create<AdminMemberState>((set, get) => ({
             return;
         }
 
-        set({ loading: true, isSearching: true });
+        const scope = beginTenantStoreRequest();
+        set({
+            loading: true,
+            isSearching: true,
+            activeChoirId: scope.choirId,
+        });
 
         try {
-            const results = await searchMembers(query);
-            set({
-                members: results,
-                totalPages: 1,
-                currentPage: 1,
-            });
-        } catch (error) {
-            console.error('Search failed', error);
-            set({ members: [] });
+            const members = await searchMembers(query);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ members, totalPages: 1, currentPage: 1 });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     getMember: async (id) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            return await getMemberById(id);
-        } catch (error) {
-            console.error('Failed to fetch member', error);
+            const member = await getMemberById(id);
+
+            if (!isTenantStoreRequestCurrent(scope)) {
+                return null;
+            }
+
+            set({ currentMember: member });
+            return member;
+        } catch {
             return null;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     addMember: async (payload) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await createMember(payload);
-            await get().fetchMembers(1);
+            const member = await createMember(payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    members: [member, ...state.members],
+                    currentMember: member,
+                }));
+            }
+
+            return member;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     editMember: async (id, payload) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            await updateMember(id, payload);
-            await get().fetchMembers(get().currentPage);
+            const member = await updateMember(id, payload);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set((state) => ({
+                    members: state.members.map((item) => item.id === member.id ? member : item),
+                    currentMember: member,
+                }));
+            }
+
+            return member;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     removeMember: async (id) => {
+        const scope = beginTenantStoreRequest();
         await deleteMember(id);
-        await get().fetchMembers(get().currentPage);
+
+        if (isTenantStoreRequestCurrent(scope)) {
+            set((state) => ({
+                members: state.members.filter((member) => member.id !== id),
+                currentMember: state.currentMember?.id === id ? null : state.currentMember,
+            }));
+        }
     },
 }));

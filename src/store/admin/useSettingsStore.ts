@@ -5,40 +5,58 @@ import {
     getAdminSettings,
     updateAdminSettings,
 } from '../../services/admin/settings';
+import {
+    beginTenantStoreRequest,
+    isTenantStoreRequestCurrent,
+} from '../tenantStoreScope';
 import type { AppSettings } from '../../types/settings';
 
 interface AdminSettingsState {
-    settings: AppSettings | null;
-    loading: boolean;
-    fetchSettings: () => Promise<void>;
-    updateSettings: (formData: FormData) => Promise<void>;
+    readonly settings: AppSettings | null;
+    readonly activeChoirId: string | null;
+    readonly loading: boolean;
+    readonly fetchSettings: () => Promise<void>;
+    readonly updateSettings: (formData: FormData) => Promise<AppSettings>;
 }
 
 export const useAdminSettingsStore = create<AdminSettingsState>((set) => ({
     settings: null,
+    activeChoirId: null,
     loading: false,
 
     fetchSettings: async () => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            const data = await getAdminSettings();
-            set({ settings: data });
-        } catch (error) {
-            console.error('Failed to fetch settings', error);
+            const settings = await getAdminSettings();
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ settings });
+            }
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 
     updateSettings: async (formData) => {
-        set({ loading: true });
+        const scope = beginTenantStoreRequest();
+        set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            const updated = await updateAdminSettings(formData);
-            set({ settings: updated });
+            const settings = await updateAdminSettings(formData);
+
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ settings });
+            }
+
+            return settings;
         } finally {
-            set({ loading: false });
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({ loading: false });
+            }
         }
     },
 }));
