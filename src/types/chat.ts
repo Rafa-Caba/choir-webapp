@@ -9,7 +9,7 @@ export interface ChatUserSummary {
     imageUrl: string;
 }
 
-export type MessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'MEDIA' | 'REACTION' | 'AUDIO' | 'VIDEO';
+export type MessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'MEDIA' | 'REACTION' | 'AUDIO' | 'VIDEO' | 'STICKER';
 
 export interface MessageReaction {
     emoji: string;

@@ -1,11 +1,15 @@
+// src/store/admin/useSettingsStore.ts
+
 import { create } from 'zustand';
-import { getAdminSettings, updateAdminSettings } from '../../services/admin/settings';
+import {
+    getAdminSettings,
+    updateAdminSettings,
+} from '../../services/admin/settings';
 import type { AppSettings } from '../../types/settings';
 
 interface AdminSettingsState {
     settings: AppSettings | null;
     loading: boolean;
-
     fetchSettings: () => Promise<void>;
     updateSettings: (formData: FormData) => Promise<void>;
 }
@@ -16,11 +20,12 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set) => ({
 
     fetchSettings: async () => {
         set({ loading: true });
+
         try {
             const data = await getAdminSettings();
             set({ settings: data });
-        } catch (e) {
-            console.error("Failed to fetch settings", e);
+        } catch (error) {
+            console.error('Failed to fetch settings', error);
         } finally {
             set({ loading: false });
         }
@@ -28,13 +33,12 @@ export const useAdminSettingsStore = create<AdminSettingsState>((set) => ({
 
     updateSettings: async (formData) => {
         set({ loading: true });
+
         try {
             const updated = await updateAdminSettings(formData);
             set({ settings: updated });
-        } catch (e) {
-            throw e;
         } finally {
             set({ loading: false });
         }
-    }
+    },
 }));

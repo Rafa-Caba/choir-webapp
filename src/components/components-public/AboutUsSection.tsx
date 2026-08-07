@@ -1,6 +1,4 @@
-// src/components-public/AboutUsSection.tsx
-
-import { useEffect } from 'react';
+// src/components/components-public/AboutUsSection.tsx
 
 import {
     Box,
@@ -11,20 +9,23 @@ import {
 
 import ImageRoundedIcon from '@mui/icons-material/ImageRounded';
 
+import { usePublicGlobal } from '../../context/PublicGlobalContext';
 import { useGalleryStore } from '../../store/public/useGalleryStore';
 import { useSettingsStore } from '../../store/public/useSettingsStore';
 import { TiptapViewer } from '../tiptap-components/TiptapViewer';
 import { parseText } from '../../utils/handleTextTipTap';
 
 export const AboutUsSection = () => {
-    const { settings, fetchSettings } = useSettingsStore();
-    const { images } = useGalleryStore();
+    const { choirCode } = usePublicGlobal();
+    const settings = useSettingsStore((state) => (
+        state.loadedChoirCode === choirCode ? state.settings : null
+    ));
+    const images = useGalleryStore((state) => (
+        state.loadedChoirCode === choirCode ? state.images : []
+    ));
 
     const usImage = images.find((image) => image.imageUs);
 
-    useEffect(() => {
-        void fetchSettings();
-    }, [fetchSettings]);
 
     return (
         <Box

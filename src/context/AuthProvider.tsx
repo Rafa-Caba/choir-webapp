@@ -1,9 +1,7 @@
-// src/context/AuthContext.tsx
+// src/context/AuthProvider.tsx
 
 import {
-    createContext,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useRef,
@@ -12,7 +10,6 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { registerAuthBridge } from '../api/authTokenBridge';
-import { getPermissions } from '../auth/permissions';
 import {
     changeAuthenticatedPassword,
     getCurrentSession,
@@ -46,40 +43,10 @@ import type {
     PlatformLoginPayload,
     TenantLoginPayload,
     User,
-    UserRole,
 } from '../types/auth';
 import type { Choir } from '../types/choir';
+import { AuthContext, type AuthContextValue } from './AuthContext';
 import { applyThemeToDocument } from '../utils/applyThemeToDocument';
-
-interface AuthContextType {
-    readonly accessToken: string | null;
-    readonly refreshToken: string | null;
-    readonly sessionId: string | null;
-    readonly token: string | null;
-    readonly user: User | null;
-    readonly choir: AuthenticatedChoir | null;
-    readonly role: UserRole | null;
-    readonly accessMode: AccessMode | null;
-    readonly viewMode: PlatformViewMode;
-    readonly targetChoir: Choir | null;
-    readonly effectiveChoirId: string | null;
-    readonly hasTenantContext: boolean;
-    readonly targetChoirLoading: boolean;
-    readonly requiresPasswordChange: boolean;
-    readonly status: AuthStatus;
-    readonly loading: boolean;
-    readonly errorMessage: string;
-    readonly lastChoirCode: string;
-    readonly loginTenant: (payload: TenantLoginPayload) => Promise<AuthSessionResponse>;
-    readonly loginPlatform: (payload: PlatformLoginPayload) => Promise<AuthSessionResponse>;
-    readonly changePassword: (payload: ChangePasswordPayload) => Promise<AuthSessionResponse>;
-    readonly logout: () => Promise<void>;
-    readonly checkAuth: () => Promise<void>;
-    readonly enterTenantContext: (choir: Choir) => void;
-    readonly returnToPlatform: () => void;
-    readonly clearError: () => void;
-    readonly updateUser: (userData: User) => void;
-}
 
 interface AuthProviderProps {
     readonly children: ReactNode;
@@ -103,8 +70,6 @@ const mergeProfile = (
     ...profile,
     ...authenticatedUser,
 });
-
-export const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
     const navigate = useNavigate();
@@ -474,7 +439,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         ? viewMode
         : 'tenant';
 
-    const value = useMemo<AuthContextType>(() => ({
+    const value = useMemo<AuthContextValue>(() => ({
         accessToken,
         refreshToken,
         sessionId,
@@ -536,19 +501,3 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 };
 
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-
-    const permissions = getPermissions(context.user?.role ?? null);
-    const choirId = context.effectiveChoirId;
-
-    return {
-        ...context,
-        ...permissions,
-        choirId,
-    };
-};

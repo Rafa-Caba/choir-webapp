@@ -26,10 +26,18 @@ import { useAuth } from '../../context/AuthContext';
 import { useBlogStore } from '../../store/admin/useBlogStore';
 import { createHandleTextoChange, parseText } from '../../utils/handleTextTipTap';
 import { emptyEditorContent } from '../../utils/editorDefaults';
+import type { TipTapContent } from '../../types';
 
 interface CommentEditorState {
     texto: JSONContent;
 }
+
+const isTipTapContent = (
+    content: JSONContent,
+): content is TipTapContent => (
+    content.type === 'doc'
+    && Array.isArray(content.content)
+);
 
 const hasTextContent = (content: JSONContent): boolean => {
     if (typeof content.text === 'string' && content.text.trim().length > 0) {
@@ -72,7 +80,19 @@ export const AdminBlogPostSingleView = () => {
     const handleComment = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        const parsedComment = parseText(commentContent?.texto ?? emptyEditorContent);
+        const parsedComment = parseText(
+            commentContent?.texto ?? emptyEditorContent,
+        );
+
+        if (!isTipTapContent(parsedComment)) {
+            Swal.fire(
+                'Error',
+                'El formato del comentario no es válido',
+                'error',
+            );
+            return;
+        }
+
         const hasContent = hasTextContent(parsedComment);
 
         if (!hasContent) {

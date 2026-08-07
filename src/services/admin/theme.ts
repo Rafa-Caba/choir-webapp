@@ -1,39 +1,34 @@
+// src/services/admin/theme.ts
+
 import api from '../../api/axios';
-import type { Theme, CreateThemePayload } from '../../types/theme';
+import type { CreateThemePayload, Theme } from '../../types/theme';
 
-type ThemeFilterParams = {
-    choirId?: string;
-    choirKey?: string;
-};
-
-export const getAllThemes = async (params?: ThemeFilterParams): Promise<Theme[]> => {
-    const { data } = await api.get<{ themes: Theme[] }>('/themes', {
-        params: {
-            ...(params || {}),
-            all: 'true'
-        }
-    });
-    return data.themes || [];
+export const getAllThemes = async (): Promise<Theme[]> => {
+    const { data } = await api.get<Theme[]>('/themes');
+    return data;
 };
 
 export const getThemeById = async (id: string): Promise<Theme> => {
-    const { data } = await api.get<Theme>(`/themes/${id}`);
+    const { data } = await api.get<Theme>(`/themes/${encodeURIComponent(id)}`);
     return data;
 };
 
 export const createTheme = async (payload: CreateThemePayload): Promise<Theme> => {
-    const { data } = await api.post<{ theme: Theme }>('/themes', payload);
-    return data.theme;
+    const { data } = await api.post<Theme>('/themes', payload);
+    return data;
 };
 
 export const updateTheme = async (
     id: string,
-    payload: Partial<CreateThemePayload>
+    payload: Partial<CreateThemePayload>,
 ): Promise<Theme> => {
-    const { data } = await api.put<{ theme: Theme }>(`/themes/${id}`, payload);
-    return data.theme;
+    const { data } = await api.put<Theme>(
+        `/themes/${encodeURIComponent(id)}`,
+        payload,
+    );
+    return data;
 };
 
 export const deleteTheme = async (id: string): Promise<void> => {
-    await api.delete(`/themes/${id}`);
+    await api.delete(`/themes/${encodeURIComponent(id)}`);
 };

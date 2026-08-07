@@ -1,62 +1,86 @@
-import { type Dispatch, type SetStateAction } from 'react';
-import type { JSONContent } from '@tiptap/react';
+// src/utils/handleTextTipTap.ts
 
-export function createHandleTextoChange<T extends object>(
-    setState: React.Dispatch<React.SetStateAction<T | null>>,
-    key: keyof T
-) {
-    return (value: any) => {
-        setState((prev) => {
-            if (!prev) {
-                return { [key]: value } as T;
-            }
-            return {
-                ...prev,
-                [key]: value
-            };
-        });
+import type { JSONContent } from '@tiptap/react';
+import type { Dispatch, SetStateAction } from 'react';
+import type { JsonValue } from '../types/json';
+
+type TipTapInput = JSONContent | JsonValue | undefined;
+
+const createEmptyDocument = (): JSONContent => ({
+    type: 'doc',
+    content: [],
+});
+
+export function createHandleTextoChange<
+    T extends object,
+    K extends keyof T,
+>(
+    setState: Dispatch<SetStateAction<T | null>>,
+    key: K,
+): (value: T[K]) => void {
+    return (value) => {
+        setState((previousState) => (
+            previousState
+                ? { ...previousState, [key]: value }
+                : previousState
+        ));
     };
 }
 
-/**
- * Crea una función para actualizar parcial y de forma segura un formData (evitando null).
- */
-export const createUpdateFormData = <T>() => {
-    return (setFormData: Dispatch<SetStateAction<T | null>>) =>
-        (changes: Partial<T>) => {
-            setFormData(prev => (prev ? { ...prev, ...changes } : prev));
-        };
-};
-
-/**
- * Extrae texto plano desde un JSONContent de TipTap (para previews o truncado).
- */
-export const getTextFromTipTapJSON = (json: any, maxLength = 60): string => {
-    const extractText = (node: any): string => {
-        if (!node) return '';
-        if (node.type === 'text') return node.text || '';
-        if (!node.content) return '';
-        return node.content.map(extractText).join('');
+export const createUpdateFormData = <T>() => (
+    setFormData: Dispatch<SetStateAction<T | null>>,
+) => (
+    changes: Partial<T>,
+): void => {
+        setFormData((previousState) => (
+            previousState
+                ? { ...previousState, ...changes }
+                : previousState
+        ));
     };
 
-    const text = extractText(json);
-    return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
+const extractText = (node: JSONContent): string => {
+    if (node.type === 'text') {
+        return typeof node.text === 'string' ? node.text : '';
+    }
+
+    return node.content?.map(extractText).join('') ?? '';
 };
 
+export const getTextFromTipTapJSON = (
+    value: TipTapInput,
+    maxLength = 60,
+): string => {
+    const text = extractText(parseText(value));
 
-export const parseText = (texto: any): JSONContent => {
-    if (typeof texto === 'string') {
+    return text.length > maxLength
+        ? `${text.slice(0, maxLength)}...`
+        : text;
+};
+
+export const parseText = (value: TipTapInput): JSONContent => {
+    if (typeof value === 'string') {
         try {
-            const parsed = JSON.parse(texto);
-            if (isValidTipTapContent(parsed)) return parsed;
+            const parsedValue: JsonValue = JSON.parse(value);
+            return isValidTipTapContent(parsedValue)
+                ? parsedValue
+                : createEmptyDocument();
         } catch {
-            return { type: 'doc', content: [] };
+            return createEmptyDocument();
         }
     }
-    return isValidTipTapContent(texto) ? texto : { type: 'doc', content: [] };
+
+    return isValidTipTapContent(value)
+        ? value
+        : createEmptyDocument();
 };
 
+export const isValidTipTapContent = (
+    value: TipTapInput,
+): value is JSONContent => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return false;
+    }
 
-export const isValidTipTapContent = (json: any): json is JSONContent => {
-    return json && typeof json === 'object' && json.type === 'doc' && Array.isArray(json.content);
+    return value.type === 'doc' && Array.isArray(value.content);
 };

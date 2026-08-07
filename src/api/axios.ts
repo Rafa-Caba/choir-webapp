@@ -134,5 +134,6 @@ api.interceptors.response.use(
 );
 
 export default api;
+export const API_ORIGIN = ENV.API_ORIGIN;
 export const API_BASE_URL = ENV.API_BASE_URL;
 export const API_REQUEST_TIMEOUT_MS = ENV.API_REQUEST_TIMEOUT_MS;

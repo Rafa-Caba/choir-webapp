@@ -1,8 +1,19 @@
-import api from '../../api/axios';
-import type { GalleryImage } from '../../types/gallery';
-import { withChoirKey } from '../../utils/choirKey';
+// src/services/public/gallery.ts
 
-export const getPublicGallery = async (): Promise<GalleryImage[]> => {
-    const { data } = await api.get<GalleryImage[]>(withChoirKey('/gallery/public'));
-    return data;
+import { publicApi } from '../../api/axios';
+import type { GalleryImage } from '../../types/gallery';
+import type { PublicGalleryImageDto } from './publicDtos';
+import { mapPublicGalleryImage } from './publicMappers';
+import { buildPublicApiPath } from './publicPath';
+
+export const getPublicGallery = async (
+    choirCode: string,
+    signal?: AbortSignal,
+): Promise<GalleryImage[]> => {
+    const { data } = await publicApi.get<PublicGalleryImageDto[]>(
+        buildPublicApiPath(choirCode, 'gallery'),
+        { signal },
+    );
+
+    return data.map(mapPublicGalleryImage);
 };

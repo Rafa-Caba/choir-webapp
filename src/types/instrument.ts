@@ -1,3 +1,5 @@
+// src/types/instrument.ts
+
 export interface InstrumentAuthor {
     id: string;
     name: string;
@@ -34,6 +36,4 @@ export interface CreateInstrumentPayload {
     isActive?: boolean;
     order?: number;
 
-    choirId?: string;
-    choirKey?: string;
 }

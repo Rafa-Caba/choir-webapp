@@ -1,18 +1,34 @@
 // src/components/components-public/MyCarousel.tsx
 
-import { useEffect } from 'react';
 import { Carousel } from 'react-bootstrap';
 import { FaImage } from 'react-icons/fa';
 import { Box, Paper, Typography } from '@mui/material';
 
+import { PublicResourceNotice } from '../public/PublicResourceNotice';
+import { usePublicGlobal } from '../../context/PublicGlobalContext';
 import { useGalleryStore } from '../../store/public/useGalleryStore';
 
 export const MyCarousel = () => {
-    const { images, fetchGallery } = useGalleryStore();
+    const { choirCode } = usePublicGlobal();
+    const images = useGalleryStore((state) => (
+        state.loadedChoirCode === choirCode ? state.images : []
+    ));
+    const loading = useGalleryStore((state) => (
+        state.loadedChoirCode === choirCode && state.loading
+    ));
+    const errorMessage = useGalleryStore((state) => (
+        state.loadedChoirCode === choirCode ? state.errorMessage : null
+    ));
 
-    useEffect(() => {
-        void fetchGallery();
-    }, [fetchGallery]);
+    if (loading || errorMessage) {
+        return (
+            <PublicResourceNotice
+                loading={loading}
+                loadingMessage="Cargando galería..."
+                errorMessage={errorMessage}
+            />
+        );
+    }
 
     const galleryImages = images.filter((image) => image.imageGallery);
 

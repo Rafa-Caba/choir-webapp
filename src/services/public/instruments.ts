@@ -1,8 +1,19 @@
-import api from '../../api/axios';
-import type { Instrument } from '../../types/instrument';
-import { withChoirKey } from '../../utils/choirKey';
+// src/services/public/instruments.ts
 
-export const getPublicInstruments = async (): Promise<Instrument[]> => {
-    const { data } = await api.get<Instrument[]>(withChoirKey('/instruments/public'));
-    return data;
+import { publicApi } from '../../api/axios';
+import type { Instrument } from '../../types/instrument';
+import type { PublicInstrumentDto } from './publicDtos';
+import { mapPublicInstrument } from './publicMappers';
+import { buildPublicApiPath } from './publicPath';
+
+export const getPublicInstruments = async (
+    choirCode: string,
+    signal?: AbortSignal,
+): Promise<Instrument[]> => {
+    const { data } = await publicApi.get<PublicInstrumentDto[]>(
+        buildPublicApiPath(choirCode, 'instruments'),
+        { signal },
+    );
+
+    return data.map(mapPublicInstrument);
 };

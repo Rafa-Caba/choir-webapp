@@ -1,41 +1,35 @@
 // src/components/components-public/MemberSection.tsx
 
-import { useEffect } from 'react';
-
 import {
     Avatar,
     Box,
-    CircularProgress,
     Paper,
     Typography,
 } from '@mui/material';
 
+import { PublicResourceNotice } from '../public/PublicResourceNotice';
+import { usePublicGlobal } from '../../context/PublicGlobalContext';
 import { useMemberStore } from '../../store/public/useMemberStore';
 
 const MemberSection = () => {
-    const { members, loading, fetchMembers } = useMemberStore();
+    const { choirCode } = usePublicGlobal();
+    const members = useMemberStore((state) => (
+        state.loadedChoirCode === choirCode ? state.members : []
+    ));
+    const loading = useMemberStore((state) => (
+        state.loadedChoirCode === choirCode && state.loading
+    ));
+    const errorMessage = useMemberStore((state) => (
+        state.loadedChoirCode === choirCode ? state.errorMessage : null
+    ));
 
-    useEffect(() => {
-        void fetchMembers();
-    }, [fetchMembers]);
-
-    if (loading) {
+    if (loading || errorMessage) {
         return (
-            <Box
-                sx={{
-                    minHeight: 320,
-                    display: 'grid',
-                    placeItems: 'center',
-                    color: 'var(--color-text)',
-                }}
-            >
-                <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress />
-                    <Typography sx={{ mt: 2, fontWeight: 800 }}>
-                        Cargando integrantes...
-                    </Typography>
-                </Box>
-            </Box>
+            <PublicResourceNotice
+                loading={loading}
+                loadingMessage="Cargando integrantes..."
+                errorMessage={errorMessage}
+            />
         );
     }
 
@@ -106,14 +100,9 @@ const MemberSection = () => {
                         }}
                     >
                         {members.map((member) => {
-                            const memberWithInstrument = member as typeof member & {
-                                instrumentLabel?: string;
-                                instrument?: string;
-                            };
-
                             const instrumentText =
-                                memberWithInstrument.instrumentLabel ||
-                                memberWithInstrument.instrument ||
+                                member.instrumentLabel ||
+                                member.instrument ||
                                 'Sin instrumento asignado';
 
                             return (

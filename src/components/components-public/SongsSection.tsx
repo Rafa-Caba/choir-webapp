@@ -1,11 +1,10 @@
 // src/components/components-public/SongsSection.tsx
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import {
     Box,
     Button,
-    CircularProgress,
     Paper,
     Typography,
 } from '@mui/material';
@@ -15,6 +14,8 @@ import FolderRoundedIcon from '@mui/icons-material/FolderRounded';
 import MusicNoteRoundedIcon from '@mui/icons-material/MusicNoteRounded';
 
 import { SongModal } from './SongModal';
+import { PublicResourceNotice } from '../public/PublicResourceNotice';
+import { usePublicGlobal } from '../../context/PublicGlobalContext';
 
 import type { Song, SongType } from '../../types/song';
 import { useSongStore } from '../../store/public/useSongStore';
@@ -48,20 +49,28 @@ export const SongsSection = () => {
     const [currentCategoryName, setCurrentCategoryName] = useState('');
     const [currentParent, setCurrentParent] = useState<SongType | null>(null);
 
-    const { songs, fetchSongs, loading } = useSongStore();
-    const { types, fetchTypes } = useSongTypeStore();
+    const { choirCode } = usePublicGlobal();
+    const songs = useSongStore((state) => (
+        state.loadedChoirCode === choirCode ? state.songs : []
+    ));
+    const songsLoading = useSongStore((state) => (
+        state.loadedChoirCode === choirCode && state.loading
+    ));
+    const songsError = useSongStore((state) => (
+        state.loadedChoirCode === choirCode ? state.errorMessage : null
+    ));
+    const types = useSongTypeStore((state) => (
+        state.loadedChoirCode === choirCode ? state.types : []
+    ));
+    const typesLoading = useSongTypeStore((state) => (
+        state.loadedChoirCode === choirCode && state.loading
+    ));
+    const typesError = useSongTypeStore((state) => (
+        state.loadedChoirCode === choirCode ? state.errorMessage : null
+    ));
+    const loading = songsLoading || typesLoading;
+    const errorMessage = songsError ?? typesError;
 
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                await Promise.all([fetchTypes(), fetchSongs()]);
-            } catch (error) {
-                console.error('Error loading songs data:', error);
-            }
-        };
-
-        void loadData();
-    }, [fetchSongs, fetchTypes]);
 
     const sortedTypes = [...types].sort(sortSongTypes);
 
@@ -139,23 +148,13 @@ export const SongsSection = () => {
         );
     };
 
-    if (loading) {
+    if (loading || errorMessage) {
         return (
-            <Box
-                sx={{
-                    minHeight: 320,
-                    display: 'grid',
-                    placeItems: 'center',
-                    color: 'var(--color-text)',
-                }}
-            >
-                <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress />
-                    <Typography sx={{ mt: 2, fontWeight: 800 }}>
-                        Cargando cantos...
-                    </Typography>
-                </Box>
-            </Box>
+            <PublicResourceNotice
+                loading={loading}
+                loadingMessage="Cargando cantos..."
+                errorMessage={errorMessage}
+            />
         );
     }
 

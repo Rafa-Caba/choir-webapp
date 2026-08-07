@@ -1,71 +1,132 @@
+// src/services/admin/member.ts
+
 import api from '../../api/axios';
-import type { Member, PaginatedMemberResponse, CreateMemberPayload } from '../../types/member';
+import type {
+    CreateMemberPayload,
+    Member,
+    PaginatedMemberResponse,
+} from '../../types/member';
 
-// LIST (Paginated)
-export const getPaginatedMembers = async (page: number = 1, limit: number = 10): Promise<PaginatedMemberResponse> => {
-    const { data } = await api.get<PaginatedMemberResponse>('/members', {
-        params: { page, limit }
-    });
-    return data;
+const DEFAULT_PAGE_SIZE = 10;
+
+const appendMemberFields = (
+    formData: FormData,
+    payload: Partial<CreateMemberPayload>,
+): void => {
+    if (payload.name !== undefined) {
+        formData.append('name', payload.name.trim());
+    }
+
+    if (payload.instrumentId !== undefined) {
+        formData.append('instrumentId', payload.instrumentId);
+    }
+
+    const instrumentLabel = payload.instrumentLabel ?? payload.instrument;
+
+    if (instrumentLabel !== undefined) {
+        formData.append('instrumentLabel', instrumentLabel.trim());
+    }
+
+    if (payload.voice !== undefined) {
+        formData.append('voice', String(payload.voice));
+    }
 };
 
-// SEARCH (Flat Array)
-export const searchMembers = async (query: string): Promise<Member[]> => {
-    const { data } = await api.get<Member[]>('/members/search', {
-        params: { q: query }
-    });
-    return data;
-};
+const paginateMembers = (
+    members: readonly Member[],
+    page: number,
+    limit: number,
+): PaginatedMemberResponse => {
+    const safeLimit = Math.max(1, limit);
+    const totalMembers = members.length;
+    const totalPages = Math.max(1, Math.ceil(totalMembers / safeLimit));
+    const currentPage = Math.min(Math.max(1, page), totalPages);
+    const startIndex = (currentPage - 1) * safeLimit;
 
-// GET ONE
-export const getMemberById = async (id: string): Promise<Member> => {
-    const { data } = await api.get<Member>(`/members/${id}`);
-    return data;
-};
-
-// CREATE
-export const createMember = async (payload: CreateMemberPayload): Promise<Member> => {
-    const formData = new FormData();
-
-    const dataPayload = {
-        name: payload.name,
-        instrument: payload.instrument,
-        voice: payload.voice
+    return {
+        members: members.slice(startIndex, startIndex + safeLimit),
+        currentPage,
+        totalPages,
+        totalMembers,
     };
-    formData.append('data', JSON.stringify(dataPayload));
-
-    if (payload.file) {
-        formData.append('file', payload.file);
-    }
-
-    const { data } = await api.post('/members', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return data.member;
 };
 
-// UPDATE
-export const updateMember = async (id: string, payload: Partial<CreateMemberPayload>): Promise<Member> => {
+export const getAllMembers = async (): Promise<Member[]> => {
+    const { data } = await api.get<Member[]>('/members');
+    return data;
+};
+
+export const getPaginatedMembers = async (
+    page = 1,
+    limit = DEFAULT_PAGE_SIZE,
+): Promise<PaginatedMemberResponse> => {
+    const members = await getAllMembers();
+    return paginateMembers(members, page, limit);
+};
+
+export const searchMembers = async (query: string): Promise<Member[]> => {
+    const normalizedQuery = query.trim().toLocaleLowerCase('es-MX');
+
+    if (!normalizedQuery) {
+        return getAllMembers();
+    }
+
+    const members = await getAllMembers();
+
+    return members.filter((member) => {
+        const searchableText = [
+            member.name,
+            member.instrumentLabel,
+            member.instrument,
+        ]
+            .filter((value): value is string => Boolean(value))
+            .join(' ')
+            .toLocaleLowerCase('es-MX');
+
+        return searchableText.includes(normalizedQuery);
+    });
+};
+
+export const getMemberById = async (id: string): Promise<Member> => {
+    const { data } = await api.get<Member>(`/members/${encodeURIComponent(id)}`);
+    return data;
+};
+
+export const createMember = async (
+    payload: CreateMemberPayload,
+): Promise<Member> => {
     const formData = new FormData();
-
-    const dataPayload: any = {};
-    if (payload.name) dataPayload.name = payload.name;
-    if (payload.instrument) dataPayload.instrument = payload.instrument;
-    if (payload.voice !== undefined) dataPayload.voice = payload.voice;
-
-    formData.append('data', JSON.stringify(dataPayload));
+    appendMemberFields(formData, payload);
 
     if (payload.file) {
         formData.append('file', payload.file);
     }
 
-    const { data } = await api.put<Member>(`/members/${id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+    const { data } = await api.post<Member>('/members', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
     });
     return data;
 };
 
-// DELETE
+export const updateMember = async (
+    id: string,
+    payload: Partial<CreateMemberPayload>,
+): Promise<Member> => {
+    const formData = new FormData();
+    appendMemberFields(formData, payload);
+
+    if (payload.file) {
+        formData.append('file', payload.file);
+    }
+
+    const { data } = await api.put<Member>(
+        `/members/${encodeURIComponent(id)}`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return data;
+};
+
 export const deleteMember = async (id: string): Promise<void> => {
-    await api.delete(`/members/${id}`);
+    await api.delete(`/members/${encodeURIComponent(id)}`);
 };

@@ -24,6 +24,7 @@ import { useGalleryStore } from '../../../store/public/useGalleryStore';
 import { useSettingsStore } from '../../../store/public/useSettingsStore';
 import { useMemberStore } from '../../../store/public/useMemberStore';
 import { useThemeStore } from '../../../store/public/useThemeStore';
+import ENV from '../../../config/env';
 
 
 
@@ -199,17 +200,27 @@ export const PublicTestDashboard = () => {
     const [loadError, setLoadError] = useState('');
 
     useEffect(() => {
+        const testChoirCode = ENV.DEFAULT_PUBLIC_CHOIR_CODE;
+
+        if (!testChoirCode) {
+            setLoading(false);
+            setLoadError(
+                'Configura VITE_DEFAULT_PUBLIC_CHOIR_CODE para ejecutar esta prueba pública.',
+            );
+            return;
+        }
+
         const loadAllPublicData = async () => {
             setLoading(true);
             setLoadError('');
 
             try {
                 await Promise.all([
-                    fetchSongs(),
-                    fetchGallery(),
-                    fetchSettings(),
-                    fetchMembers(),
-                    fetchThemes(),
+                    fetchSongs(testChoirCode),
+                    fetchGallery(testChoirCode),
+                    fetchSettings(testChoirCode),
+                    fetchMembers(testChoirCode),
+                    fetchThemes(testChoirCode),
                 ]);
             } catch {
                 setLoadError('No se pudieron cargar todos los datos públicos de prueba.');

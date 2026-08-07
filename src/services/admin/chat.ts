@@ -1,7 +1,24 @@
-import api from '../../api/axios';
-import type { ChatMessage, MessageType } from '../../types/chat';
+// src/services/admin/chat.ts
 
-const createChatFormData = (file: File, type: 'image' | 'video' | 'audio' | 'file') => {
+import api from '../../api/axios';
+import type { JSONContent } from '@tiptap/react';
+import type { MessageType } from '../../types/chat';
+import type {
+    ChatMessageDto,
+    ChatMessageEnvelopeDto,
+    ChatUploadResponseDto,
+} from './chatDtos';
+
+export type ChatAttachmentType = 'image' | 'video' | 'audio' | 'file';
+
+export interface SendMessageRequest {
+    readonly content: JSONContent;
+    readonly type: MessageType;
+    readonly mediaAssetId?: string;
+    readonly replyToId?: string;
+}
+
+const createChatFormData = (file: File, type: ChatAttachmentType): FormData => {
     const formData = new FormData();
     let filename = file.name;
 
@@ -13,56 +30,50 @@ const createChatFormData = (file: File, type: 'image' | 'video' | 'audio' | 'fil
     return formData;
 };
 
-export const getChatHistory = async (limit = 50, before?: string): Promise<ChatMessage[]> => {
-    const query = before ? `?limit=${limit}&before=${before}` : `?limit=${limit}`;
-    const { data } = await api.get<ChatMessage[]>(`/chat/history${query}`);
+export const getChatHistory = async (
+    limit = 50,
+    before?: string,
+): Promise<ChatMessageDto[]> => {
+    const { data } = await api.get<ChatMessageDto[]>('/chat/history', {
+        params: {
+            limit,
+            ...(before ? { before } : {}),
+        },
+    });
     return data;
 };
 
 export const uploadChatMedia = async (
     file: File,
-    type: 'image' | 'video' | 'audio' | 'file'
-): Promise<string> => {
+    type: ChatAttachmentType,
+): Promise<ChatUploadResponseDto> => {
     const formData = createChatFormData(file, type);
-
-    let endpoint = '/chat/upload-file';
-    if (type === 'image') endpoint = '/chat/upload-image';
-    else if (type === 'video' || type === 'audio') endpoint = '/chat/upload-media';
-
-    const { data } = await api.post(endpoint, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+    const endpoint = type === 'image'
+        ? '/chat/upload-image'
+        : type === 'file'
+            ? '/chat/upload-file'
+            : '/chat/upload-media';
+    const { data } = await api.post<ChatUploadResponseDto>(endpoint, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
     });
 
-    const msg = (data as any).message ?? data;
-
-    return (
-        msg?.fileUrl ||
-        msg?.imageUrl ||
-        msg?.audioUrl ||
-        (data as any).url ||
-        ''
-    );
+    return data;
 };
 
-interface SendMessageRequest {
-    content: any;
-    type: MessageType;
-    fileUrl?: string;
-    filename?: string;
-    replyToId?: string;
-}
-
-export const sendTextMessage = async (body: SendMessageRequest): Promise<ChatMessage> => {
-    const { data } = await api.post('/chat', body);
-    const msg = (data as any).message ?? data;
-    return msg as ChatMessage;
+export const sendTextMessage = async (
+    body: SendMessageRequest,
+): Promise<ChatMessageDto> => {
+    const { data } = await api.post<ChatMessageEnvelopeDto>('/chat', body);
+    return data.message;
 };
 
 export const toggleReaction = async (
     messageId: string,
-    emoji: string
-): Promise<ChatMessage> => {
-    const { data } = await api.patch(`/chat/${messageId}/reaction`, { emoji });
-    const msg = (data as any).message ?? data;
-    return msg as ChatMessage;
+    emoji: string,
+): Promise<ChatMessageDto> => {
+    const { data } = await api.patch<ChatMessageEnvelopeDto>(
+        `/chat/${encodeURIComponent(messageId)}/reaction`,
+        { emoji },
+    );
+    return data.message;
 };

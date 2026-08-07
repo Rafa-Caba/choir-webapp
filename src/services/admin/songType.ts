@@ -1,21 +1,38 @@
+// src/services/admin/songType.ts
+
 import api from '../../api/axios';
 import type { SongType } from '../../types/song';
 
+export interface SaveSongTypePayload {
+    readonly name: string;
+    readonly order: number;
+    readonly parentId?: string;
+    readonly isParent?: boolean;
+}
+
 export const getAllSongTypes = async (): Promise<SongType[]> => {
-    const { data } = await api.get<{ types: SongType[] }>('/song-types?all=true');
-    return data.types;
+    const { data } = await api.get<SongType[]>('/song-types');
+    return data;
 };
 
-export const createSongType = async (payload: { name: string; order: number; parentId?: string; isParent?: boolean }): Promise<SongType> => {
+export const createSongType = async (
+    payload: SaveSongTypePayload,
+): Promise<SongType> => {
     const { data } = await api.post<SongType>('/song-types', payload);
     return data;
 };
 
-export const updateSongType = async (id: string, payload: { name?: string; order?: number; isParent?: boolean }): Promise<SongType> => {
-    const { data } = await api.put<SongType>(`/song-types/${id}`, payload);
+export const updateSongType = async (
+    id: string,
+    payload: Partial<SaveSongTypePayload>,
+): Promise<SongType> => {
+    const { data } = await api.put<SongType>(
+        `/song-types/${encodeURIComponent(id)}`,
+        payload,
+    );
     return data;
 };
 
 export const deleteSongType = async (id: string): Promise<void> => {
-    await api.delete(`/song-types/${id}`);
+    await api.delete(`/song-types/${encodeURIComponent(id)}`);
 };

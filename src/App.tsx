@@ -2,9 +2,7 @@
 
 import type { JSX } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import PublicLayout from './layouts/public/PublicLayout';
 import AdminLayout from './layouts/admin/AdminLayout';
-import { PublicGlobalProvider } from './context/PublicGlobalContext';
 import { PrivateRoute } from './components/PrivateRoute';
 import { PasswordChangeRoute } from './components/auth/PasswordChangeRoute';
 import { RoleGuard } from './components/auth/RoleGuard';
@@ -13,6 +11,10 @@ import { PlatformContextGuard } from './components/auth/PlatformContextGuard';
 import type { PermissionKey } from './auth/permissions';
 import './assets/styles/global.scss';
 import { HomePage } from './pages/public/Home';
+import { BlogPostsView as PublicBlogPostsView } from './pages/public/BlogPostsView';
+import { BlogPostView as PublicBlogPostView } from './pages/public/BlogPostView';
+import { PublicRootRoute } from './routing/PublicRootRoute';
+import { PublicChoirRoute } from './routing/PublicChoirRoute';
 import { Contact } from './pages/public/Contact';
 import { Members as MembersPublic } from './pages/public/Members';
 import { Songs } from './pages/public/Songs';
@@ -78,34 +80,16 @@ const requirePlatform = (element: JSX.Element, permission: PermissionKey): JSX.E
 function App() {
     return (
         <Routes>
-            <Route
-                path="/"
-                element={(
-                    <PublicGlobalProvider>
-                        <PublicLayout />
-                    </PublicGlobalProvider>
-                )}
-            >
-                <Route index element={<HomePage />} />
-                <Route path="contact" element={<Contact />} />
-                <Route path="members" element={<MembersPublic />} />
-                <Route path="songs" element={<Songs />} />
-                <Route path="about" element={<AboutUs />} />
-            </Route>
+            <Route path="/" element={<PublicRootRoute />} />
 
-            <Route
-                path="/:choirKey"
-                element={(
-                    <PublicGlobalProvider>
-                        <PublicLayout />
-                    </PublicGlobalProvider>
-                )}
-            >
+            <Route path="/:choirCode" element={<PublicChoirRoute />}>
                 <Route index element={<HomePage />} />
                 <Route path="contact" element={<Contact />} />
                 <Route path="members" element={<MembersPublic />} />
                 <Route path="songs" element={<Songs />} />
                 <Route path="about" element={<AboutUs />} />
+                <Route path="blog" element={<PublicBlogPostsView />} />
+                <Route path="blog/:postId" element={<PublicBlogPostView />} />
             </Route>
 
             <Route

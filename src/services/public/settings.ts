@@ -1,8 +1,26 @@
-import api from '../../api/axios';
-import type { AppSettings } from '../../types/settings';
-import { withChoirKey } from '../../utils/choirKey';
+// src/services/public/settings.ts
 
-export const getPublicSettings = async (): Promise<AppSettings> => {
-    const { data } = await api.get<AppSettings>(withChoirKey('/settings/public'));
-    return data;
+import { publicApi } from '../../api/axios';
+import type { PublicSettingsResponse } from '../../types/public';
+import { mapPublicSettings } from './publicMappers';
+import type { PublicSettingsApiResponse } from './publicDtos';
+import { normalizeChoirCode } from '../../utils/choirCode';
+import { buildPublicApiPath } from './publicPath';
+
+export const getPublicSettings = async (
+    choirCode: string,
+    signal?: AbortSignal,
+): Promise<PublicSettingsResponse> => {
+    const { data } = await publicApi.get<PublicSettingsApiResponse>(
+        buildPublicApiPath(choirCode, 'settings'),
+        { signal },
+    );
+
+    const response = mapPublicSettings(data);
+
+    if (normalizeChoirCode(response.choir.code) !== normalizeChoirCode(choirCode)) {
+        throw new Error('The API returned settings for a different choir code');
+    }
+
+    return response;
 };

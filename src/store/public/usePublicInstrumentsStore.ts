@@ -1,31 +1,102 @@
+// src/store/public/usePublicInstrumentsStore.ts
+
 import { create } from 'zustand';
 import { getPublicInstruments } from '../../services/public/instruments';
 import type { Instrument } from '../../types/instrument';
+import type { PublicResourceStatus } from './index';
+import {
+    getPublicResourceError,
+    isPublicRequestCancelled,
+    normalizePublicStoreChoirCode,
+} from './publicStoreSupport';
 
 interface PublicInstrumentsState {
     instruments: Instrument[];
     loading: boolean;
-    initialized: boolean;
-
-    fetchPublicInstruments: () => Promise<void>;
+    status: PublicResourceStatus;
+    loadedChoirCode: string | null;
+    errorCode: string | null;
+    errorMessage: string | null;
+    fetchPublicInstruments: (choirCode: string) => Promise<void>;
+    reset: () => void;
 }
 
-export const usePublicInstrumentsStore = create<PublicInstrumentsState>((set, get) => ({
-    instruments: [],
+let activeController: AbortController | null = null;
+
+const initialState = {
+    instruments: [] as Instrument[],
     loading: false,
-    initialized: false,
+    status: 'idle' as const,
+    loadedChoirCode: null,
+    errorCode: null,
+    errorMessage: null,
+};
 
-    fetchPublicInstruments: async () => {
-        if (get().initialized) return;
+export const usePublicInstrumentsStore = create<PublicInstrumentsState>((set, get) => ({
+    ...initialState,
+    fetchPublicInstruments: async (choirCode) => {
+        const normalizedCode = normalizePublicStoreChoirCode(choirCode);
 
-        set({ loading: true });
-        try {
-            const data = await getPublicInstruments();
-            set({ instruments: data, initialized: true });
-        } catch (error) {
-            console.error('Error fetching public instruments:', error);
-        } finally {
-            set({ loading: false });
+        if (get().loadedChoirCode === normalizedCode && get().status === 'ready') {
+            return;
         }
-    }
+
+        activeController?.abort();
+        const controller = new AbortController();
+        activeController = controller;
+
+        set({
+            ...initialState,
+            loading: true,
+            status: 'loading',
+            loadedChoirCode: normalizedCode,
+        });
+
+        try {
+            const data = await getPublicInstruments(normalizedCode, controller.signal);
+
+            if (activeController !== controller || get().loadedChoirCode !== normalizedCode) {
+                return;
+            }
+
+            set({
+                instruments: data,
+                loading: false,
+                status: 'ready',
+                loadedChoirCode: normalizedCode,
+                errorCode: null,
+                errorMessage: null,
+            });
+        } catch (error) {
+            const requestError = error instanceof Error
+                ? error
+                : new Error('Unexpected public request failure');
+
+            if (isPublicRequestCancelled(requestError)) {
+                return;
+            }
+
+            if (activeController !== controller || get().loadedChoirCode !== normalizedCode) {
+                return;
+            }
+
+            const publicError = getPublicResourceError(requestError);
+            set({
+                ...initialState,
+                status: 'error',
+                loadedChoirCode: normalizedCode,
+                errorCode: publicError.code,
+                errorMessage: publicError.message,
+            });
+        } finally {
+            if (activeController === controller) {
+                activeController = null;
+            }
+        }
+    },
+    reset: () => {
+        activeController?.abort();
+        activeController = null;
+        set(initialState);
+    },
 }));

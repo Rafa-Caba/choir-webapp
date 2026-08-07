@@ -1,16 +1,28 @@
+// src/store/admin/useAnnouncementStore.ts
+
 import { create } from 'zustand';
 import {
-    getAdminAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, getAnnouncementById
+    createAnnouncement,
+    deleteAnnouncement,
+    getAdminAnnouncements,
+    getAnnouncementById,
+    updateAnnouncement,
 } from '../../services/admin/announcement';
-import type { Announcement, CreateAnnouncementPayload } from '../../types/annoucement';
+import type {
+    Announcement,
+    CreateAnnouncementPayload,
+} from '../../types/annoucement';
 
 interface AdminAnnouncementState {
     announcements: Announcement[];
     loading: boolean;
     fetchAnnouncements: () => Promise<void>;
-    getAnnouncement: (id: string) => Promise<Announcement | null>; // NEW
+    getAnnouncement: (id: string) => Promise<Announcement | null>;
     addAnnouncement: (payload: CreateAnnouncementPayload) => Promise<void>;
-    editAnnouncement: (id: string, payload: Partial<CreateAnnouncementPayload>) => Promise<void>;
+    editAnnouncement: (
+        id: string,
+        payload: Partial<CreateAnnouncementPayload>,
+    ) => Promise<void>;
     removeAnnouncement: (id: string) => Promise<void>;
 }
 
@@ -20,6 +32,7 @@ export const useAnnouncementStore = create<AdminAnnouncementState>((set, get) =>
 
     fetchAnnouncements: async () => {
         set({ loading: true });
+
         try {
             const data = await getAdminAnnouncements();
             set({ announcements: data });
@@ -32,9 +45,9 @@ export const useAnnouncementStore = create<AdminAnnouncementState>((set, get) =>
 
     getAnnouncement: async (id) => {
         set({ loading: true });
+
         try {
-            const data = await getAnnouncementById(id);
-            return data;
+            return await getAnnouncementById(id);
         } catch (error) {
             console.error(error);
             return null;
@@ -45,11 +58,10 @@ export const useAnnouncementStore = create<AdminAnnouncementState>((set, get) =>
 
     addAnnouncement: async (payload) => {
         set({ loading: true });
+
         try {
             await createAnnouncement(payload);
             await get().fetchAnnouncements();
-        } catch (error) {
-            throw error;
         } finally {
             set({ loading: false });
         }
@@ -57,22 +69,21 @@ export const useAnnouncementStore = create<AdminAnnouncementState>((set, get) =>
 
     editAnnouncement: async (id, payload) => {
         set({ loading: true });
+
         try {
             await updateAnnouncement(id, payload);
             await get().fetchAnnouncements();
-        } catch (error) {
-            throw error;
         } finally {
             set({ loading: false });
         }
     },
 
     removeAnnouncement: async (id) => {
-        try {
-            await deleteAnnouncement(id);
-            set(state => ({ announcements: state.announcements.filter(a => a.id !== id) }));
-        } catch (error) {
-            throw error;
-        }
-    }
+        await deleteAnnouncement(id);
+        set((state) => ({
+            announcements: state.announcements.filter(
+                (announcement) => announcement.id !== id,
+            ),
+        }));
+    },
 }));

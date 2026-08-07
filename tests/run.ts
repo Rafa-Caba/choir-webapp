@@ -8,6 +8,12 @@ import {
 } from '../src/api/requestScope.js';
 import { resolveEntityId } from '../src/types/api/entity.js';
 import { getAuthErrorMessage } from '../src/auth/authErrorMessages.js';
+import {
+    buildPublicChoirPath,
+    isValidChoirCode,
+    normalizeChoirCode,
+} from '../src/utils/choirCode.js';
+import { buildPublicApiPath } from '../src/services/public/publicPath.js';
 
 interface TestCase {
     readonly name: string;
@@ -131,6 +137,19 @@ const testCases: TestCase[] = [
             assertEqual(
                 getAuthErrorMessage('PASSWORD_CHANGE_REQUIRED', 'Fallback'),
                 'Debes cambiar la contraseña temporal antes de continuar.',
+            );
+        },
+    },
+    {
+        name: 'public choir codes normalize and build canonical paths',
+        run: () => {
+            assertEqual(normalizeChoirCode('  Coro-A  '), 'coro-a');
+            assertEqual(isValidChoirCode('coro-a'), true);
+            assertEqual(isValidChoirCode('-coro-a'), false);
+            assertEqual(buildPublicChoirPath('Coro-A', '/blog/'), '/coro-a/blog');
+            assertEqual(
+                buildPublicApiPath('Coro-A', '/announcements/'),
+                '/public/coro-a/announcements',
             );
         },
     },

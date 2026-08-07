@@ -20,6 +20,8 @@
     "src/api/requestScope.ts",
     "src/auth/authErrorMessages.ts",
     "src/auth/permissions.ts",
-    "src/types/api/entity.ts"
+    "src/types/api/entity.ts",
+    "src/utils/choirCode.ts",
+    "src/services/public/publicPath.ts"
   ]
 }

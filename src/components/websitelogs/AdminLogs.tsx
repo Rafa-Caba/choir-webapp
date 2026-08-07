@@ -37,17 +37,13 @@ import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 import { useLogStore } from '../../store/admin/useLogStore';
+import type { LogAction, LogFilters } from '../../types/log';
 import { capitalizeWord } from '../../utils/capitalize';
 
 interface SectionHeaderProps {
     title: string;
     subtitle: string;
     icon: ReactNode;
-}
-
-interface LogFilters {
-    collectionName?: string;
-    action?: string;
 }
 
 const collectionOptions = [
@@ -61,12 +57,12 @@ const collectionOptions = [
     { value: 'Settings', label: 'Settings' },
 ];
 
-const actionOptions = [
+const actionOptions: readonly { readonly value: LogAction; readonly label: string }[] = [
     { value: 'create', label: 'Create' },
     { value: 'update', label: 'Update' },
     { value: 'delete', label: 'Delete' },
-    { value: 'login', label: 'Login' },
-    { value: 'logout', label: 'Logout' },
+    { value: 'add_reaction', label: 'Agregar reacción' },
+    { value: 'remove_reaction', label: 'Quitar reacción' },
 ];
 
 const SectionHeader = ({ title, subtitle, icon }: SectionHeaderProps) => {
@@ -162,7 +158,7 @@ export const AdminLogs = () => {
     const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
 
     const {
-        logs,
+        visibleLogs,
         loading,
         currentPage,
         totalPages,
@@ -178,10 +174,11 @@ export const AdminLogs = () => {
     useEffect(() => {
         const delay = window.setTimeout(() => {
             if (search.trim()) {
-                void searchLogsText(search.trim());
+                searchLogsText(search.trim());
                 return;
             }
 
+            searchLogsText('');
             void fetchLogs(1, filters);
         }, 500);
 
@@ -206,11 +203,12 @@ export const AdminLogs = () => {
 
     const handleActionChange = (event: SelectChangeEvent<string>) => {
         const nextValue = event.target.value;
+        const nextAction = actionOptions.find((option) => option.value === nextValue)?.value;
 
         setPage(1);
         setFilters((previousValue) => ({
             ...previousValue,
-            action: nextValue || undefined,
+            action: nextAction,
         }));
     };
 
@@ -462,7 +460,7 @@ export const AdminLogs = () => {
                             </TableHead>
 
                             <TableBody>
-                                {logs.length === 0 ? (
+                                {visibleLogs.length === 0 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan={5}
@@ -478,9 +476,9 @@ export const AdminLogs = () => {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    logs.map((log) => {
-                                        const userName = 'name' in log.user ? log.user.name : 'Unknown';
-                                        const username = 'username' in log.user ? log.user.username : '';
+                                    visibleLogs.map((log) => {
+                                        const userName = log.actor?.name ?? 'Usuario no disponible';
+                                        const username = log.actor?.username ?? '';
 
                                         return (
                                             <TableRow

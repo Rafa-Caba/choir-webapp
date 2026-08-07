@@ -33,11 +33,16 @@ import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import InfoRoundedIcon from '@mui/icons-material/InfoRounded';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import MusicNoteRoundedIcon from '@mui/icons-material/MusicNoteRounded';
+import ArticleRoundedIcon from '@mui/icons-material/ArticleRounded';
 
 import { Footer } from '../../components/components-public/Footer';
 import { MuiAppThemeProvider } from '../../theme/mui/MuiAppThemeProvider';
+import { PublicSiteState } from '../../components/public/PublicSiteState';
+import { usePublicGlobal } from '../../context/PublicGlobalContext';
+import { readPublicBrandCache, writePublicBrandLogo, writePublicBrandTitle } from '../../storage/publicBrandStorage';
 import { useSettingsStore } from '../../store/public/useSettingsStore';
 import { useGalleryStore } from '../../store/public/useGalleryStore';
+import { buildPublicChoirPath } from '../../utils/choirCode';
 
 interface PublicNavigationItem {
     label: string;
@@ -51,35 +56,6 @@ const sideRailWidth = 230;
 const mobileHeaderHeight = 72;
 const desktopHeaderHeight = 118;
 const publicFooterHeight = 58;
-
-const reservedPublicSegments = ['members', 'songs', 'about', 'contact', 'blog', 'admin', 'auth'];
-
-const brandTitleStorageKey = 'ero-cras-brand-title';
-const brandLogoStorageKey = 'ero-cras-brand-logo';
-
-const readLocalStorageValue = (key: string): string => {
-    if (typeof window === 'undefined') {
-        return '';
-    }
-
-    try {
-        return window.localStorage.getItem(key) || '';
-    } catch {
-        return '';
-    }
-};
-
-const writeLocalStorageValue = (key: string, value: string): void => {
-    if (typeof window === 'undefined' || value.trim() === '') {
-        return;
-    }
-
-    try {
-        window.localStorage.setItem(key, value);
-    } catch {
-        return;
-    }
-};
 
 const setDocumentFavicon = (href: string): void => {
     if (typeof document === 'undefined' || href.trim() === '') {
@@ -120,15 +96,21 @@ const PublicLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { settings, fetchSettings } = useSettingsStore();
-    const { images, fetchGallery } = useGalleryStore();
+    const { choirCode, choir, status, errorMessage } = usePublicGlobal();
+    const settings = useSettingsStore((state) => (
+        state.loadedChoirCode === choirCode ? state.settings : null
+    ));
+    const images = useGalleryStore((state) => (
+        state.loadedChoirCode === choirCode ? state.images : []
+    ));
 
     const isDesktop = useMediaQuery('(min-width:900px)');
     const showSideRails = useMediaQuery('(min-width:1100px)');
 
     const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-    const [cachedWebTitle, setCachedWebTitle] = useState<string>(() => readLocalStorageValue(brandTitleStorageKey));
-    const [cachedLogoUrl, setCachedLogoUrl] = useState<string>(() => readLocalStorageValue(brandLogoStorageKey));
+    const cachedBrand = readPublicBrandCache(choirCode);
+    const [cachedWebTitle, setCachedWebTitle] = useState<string>(cachedBrand.title);
+    const [cachedLogoUrl, setCachedLogoUrl] = useState<string>(cachedBrand.logoUrl);
 
     const headerHeight = isDesktop ? desktopHeaderHeight : mobileHeaderHeight;
 
@@ -137,16 +119,16 @@ const PublicLayout = () => {
     const rightMenuImage = images.find((image) => image.imageRightMenu);
 
     const realWebTitle = settings?.webTitle?.trim() || '';
-    const realLogoUrl = logoImage?.imageUrl?.trim() || '';
+    const realLogoUrl = (
+        settings?.logoUrl?.trim() ||
+        choir?.logoUrl?.trim() ||
+        logoImage?.imageUrl?.trim() ||
+        ''
+    );
     const resolvedWebTitle = realWebTitle || cachedWebTitle;
     const resolvedLogoUrl = realLogoUrl || cachedLogoUrl;
     const publicTitle = resolvedWebTitle ? `${resolvedWebTitle} Oficial` : 'Cargando sitio...';
     const compactTitle = getCompactTitle(publicTitle);
-
-    useEffect(() => {
-        void fetchSettings();
-        void fetchGallery();
-    }, [fetchGallery, fetchSettings]);
 
     useEffect(() => {
         if (resolvedWebTitle) {
@@ -155,7 +137,7 @@ const PublicLayout = () => {
 
         if (realWebTitle && realWebTitle !== cachedWebTitle) {
             setCachedWebTitle(realWebTitle);
-            writeLocalStorageValue(brandTitleStorageKey, realWebTitle);
+            writePublicBrandTitle(choirCode, realWebTitle);
         }
 
         if (resolvedLogoUrl) {
@@ -164,20 +146,22 @@ const PublicLayout = () => {
 
         if (realLogoUrl && realLogoUrl !== cachedLogoUrl) {
             setCachedLogoUrl(realLogoUrl);
-            writeLocalStorageValue(brandLogoStorageKey, realLogoUrl);
+            writePublicBrandLogo(choirCode, realLogoUrl);
         }
-    }, [cachedLogoUrl, cachedWebTitle, realLogoUrl, realWebTitle, resolvedLogoUrl, resolvedWebTitle]);
+    }, [
+        cachedLogoUrl,
+        cachedWebTitle,
+        choirCode,
+        realLogoUrl,
+        realWebTitle,
+        resolvedLogoUrl,
+        resolvedWebTitle,
+    ]);
 
     const fromAdmin = new URLSearchParams(location.search).get('fromAdmin') === 'true';
 
-    const firstPathSegment = location.pathname.match(/^\/([^/?#]+)/)?.[1] || null;
-    const choirKey =
-        firstPathSegment && !reservedPublicSegments.includes(firstPathSegment)
-            ? firstPathSegment
-            : null;
-
-    const basePath = choirKey ? `/${choirKey}` : 'ero1';
-    const homePath = choirKey ? `/${choirKey}` : '/ero1';
+    const basePath = buildPublicChoirPath(choirCode);
+    const homePath = basePath;
 
     const navigationItems = useMemo<PublicNavigationItem[]>(() => {
         return [
@@ -195,6 +179,11 @@ const PublicLayout = () => {
                 label: 'Cantos',
                 path: `${basePath}/songs`,
                 icon: <MusicNoteRoundedIcon />,
+            },
+            {
+                label: 'Blog',
+                path: `${basePath}/blog`,
+                icon: <ArticleRoundedIcon />,
             },
             {
                 label: 'Nosotros',
@@ -220,7 +209,7 @@ const PublicLayout = () => {
 
     const isActive = (path: string) => {
         if (path === homePath) {
-            return location.pathname === homePath || location.pathname === '/';
+            return location.pathname === homePath;
         }
 
         return location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -404,6 +393,34 @@ const PublicLayout = () => {
             </Box>
         </Box>
     );
+
+    if (status === 'loading') {
+        return (
+            <PublicSiteState
+                title="Cargando sitio del coro"
+                message="Estamos obteniendo la información pública correspondiente a esta dirección."
+                loading
+            />
+        );
+    }
+
+    if (status === 'not-found') {
+        return (
+            <PublicSiteState
+                title="Coro no encontrado"
+                message="El coro solicitado no existe, está inactivo o ya no tiene una página pública disponible."
+            />
+        );
+    }
+
+    if (status === 'error') {
+        return (
+            <PublicSiteState
+                title="No fue posible cargar el sitio"
+                message={errorMessage ?? 'Ocurrió un problema al cargar el contenido público de este coro.'}
+            />
+        );
+    }
 
     return (
         <MuiAppThemeProvider>
