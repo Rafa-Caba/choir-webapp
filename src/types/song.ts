@@ -1,4 +1,6 @@
-import type { TipTapContent } from './annoucement';
+// src/types/song.ts
+
+import type { TipTapContent } from './announcement';
 
 export interface SongType {
     id: string;

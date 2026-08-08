@@ -1,4 +1,6 @@
-import type { TipTapContent } from './annoucement';
+// src/types/settings.ts
+
+import type { TipTapContent } from './announcement';
 
 export interface SocialLinks {
     facebook: string;

@@ -1,6 +1,6 @@
 // src/types/blog.ts
 
-import type { TipTapContent } from './annoucement';
+import type { TipTapContent } from './announcement';
 
 export interface BlogComment {
     author: string;

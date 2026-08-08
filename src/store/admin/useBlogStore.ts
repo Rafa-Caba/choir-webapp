@@ -14,7 +14,7 @@ import {
     beginTenantStoreRequest,
     isTenantStoreRequestCurrent,
 } from '../tenantStoreScope';
-import type { TipTapContent } from '../../types/annoucement';
+import type { TipTapContent } from '../../types/announcement';
 import type { BlogPost, CreateBlogPayload } from '../../types/blog';
 
 interface AdminBlogState {

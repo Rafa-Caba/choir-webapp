@@ -4,7 +4,7 @@ import api from '../../api/axios';
 import type {
     Announcement,
     CreateAnnouncementPayload,
-} from '../../types/annoucement';
+} from '../../types/announcement';
 
 const createAnnouncementFormData = (
     payload: Partial<CreateAnnouncementPayload>,

@@ -32,7 +32,7 @@ import type { HomeLegends, SocialLinks, UpdateSettingsPayload } from '../../type
 import { TiptapEditor } from '../tiptap-components/TiptapEditor';
 import { parseText } from '../../utils/handleTextTipTap';
 import { emptyEditorContent } from '../../utils/editorDefaults';
-import type { TipTapContent } from '../../types/annoucement';
+import type { TipTapContent } from '../../types/announcement';
 
 interface SettingsFormData {
     webTitle: string;

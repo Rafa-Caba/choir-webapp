@@ -17,6 +17,7 @@ import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import LoginRoundedIcon from '@mui/icons-material/LoginRounded';
 import { useChoirsStore } from '../../store/admin/useChoirsStore';
 import { useAuth } from '../../context/AuthContext';
+import { getSelectedChoirLandingRoute } from '../../routing/adminNavigation';
 
 const formatDate = (value: string | undefined): string => {
     if (!value) {
@@ -74,7 +75,7 @@ export const AdminChoirDetail = () => {
 
     const handleEnterTenantContext = (): void => {
         enterTenantContext(selectedChoir);
-        navigate('/admin');
+        navigate(getSelectedChoirLandingRoute(), { replace: true });
     };
 
     return (

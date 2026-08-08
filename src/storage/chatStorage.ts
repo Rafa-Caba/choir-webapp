@@ -7,7 +7,7 @@ import type {
     MessageType,
     ReplyPreview,
 } from '../types/chat';
-import type { TipTapContent } from '../types/annoucement';
+import type { TipTapContent } from '../types/announcement';
 import type { JsonArray, JsonObject, JsonValue } from '../types/json';
 import {
     APP_STORAGE_PREFIX,

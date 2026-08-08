@@ -33,6 +33,7 @@ import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 
 import { useChoirsStore } from '../../store/admin/useChoirsStore';
 import { useAuth } from '../../context/AuthContext';
+import { getSelectedChoirLandingRoute } from '../../routing/adminNavigation';
 import type { Choir } from '../../types/choir';
 
 export const AdminChoirList = () => {
@@ -73,8 +74,7 @@ export const AdminChoirList = () => {
         try {
             await deleteChoirById(id);
             Swal.fire('Coro desactivado', 'El coro ya no está disponible para operaciones tenant.', 'success');
-        } catch (error) {
-            console.error(error);
+        } catch {
             Swal.fire('Error', 'No se pudo desactivar el coro.', 'error');
         }
     };
@@ -82,7 +82,7 @@ export const AdminChoirList = () => {
     const handleEnterChoir = (choir: Choir): void => {
         try {
             enterTenantContext(choir);
-            navigate('/admin');
+            navigate(getSelectedChoirLandingRoute(), { replace: true });
         } catch {
             Swal.fire(
                 'Coro no disponible',

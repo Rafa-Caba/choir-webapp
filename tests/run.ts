@@ -24,7 +24,18 @@ import { isValidTemporaryPassword } from '../src/users/temporaryPassword.js';
 import {
     APP_STORAGE_PREFIX,
     buildAppStorageKey,
+    isChoirWebStorageKey,
 } from '../src/storage/appStorage.js';
+import {
+    normalizeApiUrl,
+    normalizeSocketOrigin,
+    parseDefaultPublicChoirCode,
+    parseRequestTimeout,
+} from '../src/config/envParsing.js';
+import {
+    getSelectedChoirLandingRoute,
+    resolveAdminEntryRedirect,
+} from '../src/routing/adminNavigation.js';
 
 interface TestCase {
     readonly name: string;
@@ -34,6 +45,20 @@ interface TestCase {
 const assertEqual = <Value>(actual: Value, expected: Value): void => {
     if (!Object.is(actual, expected)) {
         throw new Error(`Expected ${String(expected)}, received ${String(actual)}`);
+    }
+};
+
+const assertThrows = (callback: () => void): void => {
+    let didThrow = false;
+
+    try {
+        callback();
+    } catch {
+        didThrow = true;
+    }
+
+    if (!didThrow) {
+        throw new Error('Expected callback to throw');
     }
 };
 
@@ -164,7 +189,6 @@ const testCases: TestCase[] = [
             );
         },
     },
-
     {
         name: 'tenant request scopes reject stale responses after a choir change',
         run: () => {
@@ -207,6 +231,15 @@ const testCases: TestCase[] = [
         },
     },
     {
+        name: 'logout storage cleanup preserves unrelated domain keys',
+        run: () => {
+            assertEqual(isChoirWebStorageKey('choir-web:session:access-token'), true);
+            assertEqual(isChoirWebStorageKey('choir-web:choir-a:user-1:chat'), true);
+            assertEqual(isChoirWebStorageKey('other-product:preference'), false);
+            assertEqual(isChoirWebStorageKey('theme'), false);
+        },
+    },
+    {
         name: 'inactive choir sessions map to a dedicated safe message',
         run: () => {
             assertEqual(
@@ -223,6 +256,69 @@ const testCases: TestCase[] = [
                 'Mensaje seguro',
             );
             assertEqual(getAuthErrorMessage(undefined, 'Mensaje seguro'), 'Mensaje seguro');
+        },
+    },
+    {
+        name: 'API URL normalization never duplicates the API prefix',
+        run: () => {
+            const fromOrigin = normalizeApiUrl('https://api.example.com');
+            const fromApiPath = normalizeApiUrl('https://api.example.com/api/');
+
+            assertEqual(fromOrigin.origin, 'https://api.example.com');
+            assertEqual(fromOrigin.baseUrl, 'https://api.example.com/api');
+            assertEqual(fromApiPath.origin, 'https://api.example.com');
+            assertEqual(fromApiPath.baseUrl, 'https://api.example.com/api');
+        },
+    },
+    {
+        name: 'Socket.IO can use an independent origin or safely fall back to the API origin',
+        run: () => {
+            assertEqual(
+                normalizeSocketOrigin('https://socket.example.com/api', 'https://api.example.com'),
+                'https://socket.example.com',
+            );
+            assertEqual(
+                normalizeSocketOrigin('', 'https://api.example.com'),
+                'https://api.example.com',
+            );
+        },
+    },
+    {
+        name: 'environment parsing rejects invalid public choir codes and request timeouts',
+        run: () => {
+            assertEqual(parseDefaultPublicChoirCode(' Coro-A '), 'coro-a');
+            assertEqual(parseDefaultPublicChoirCode(''), null);
+            assertEqual(parseRequestTimeout('12000'), 12000);
+            assertThrows(() => parseDefaultPublicChoirCode('-invalid'));
+            assertThrows(() => parseRequestTimeout('999'));
+        },
+    },
+    {
+        name: 'SUPER_ADMIN without a selected choir returns to the platform choir list',
+        run: () => {
+            assertEqual(
+                resolveAdminEntryRedirect({ isSuperAdmin: true, hasTenantContext: false }),
+                '/admin/choirs',
+            );
+        },
+    },
+    {
+        name: 'tenant users and selected platform tenants do not redirect away from admin',
+        run: () => {
+            assertEqual(
+                resolveAdminEntryRedirect({ isSuperAdmin: true, hasTenantContext: true }),
+                null,
+            );
+            assertEqual(
+                resolveAdminEntryRedirect({ isSuperAdmin: false, hasTenantContext: true }),
+                null,
+            );
+        },
+    },
+    {
+        name: 'selecting a choir from platform lands on tenant user administration',
+        run: () => {
+            assertEqual(getSelectedChoirLandingRoute(), '/admin/users');
         },
     },
 ];

@@ -1,3 +1,5 @@
+// src/pages/public/Contact.tsx
+
 import { useState } from "react";
 import { ContactSection } from "../../components/components-public/ContactSection";
 
@@ -14,8 +16,7 @@ export const Contact = () => {
             return;
         }
 
-        console.log('Correo: ', email);
-        console.log('Mensaje: ', emailMessage);
+        alert('El formulario de contacto todavía no está conectado a un servicio de envío.');
     };
 
     return (

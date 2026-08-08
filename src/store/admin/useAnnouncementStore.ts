@@ -15,7 +15,7 @@ import {
 import type {
     Announcement,
     CreateAnnouncementPayload,
-} from '../../types/annoucement';
+} from '../../types/announcement';
 
 interface AdminAnnouncementState {
     readonly announcements: Announcement[];

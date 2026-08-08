@@ -1,6 +1,6 @@
 // src/types/chat.ts
 
-import type { TipTapContent } from './annoucement';
+import type { TipTapContent } from './announcement';
 import type { ChatMessageDto } from '../services/admin/chatDtos';
 
 export interface ChatUserSummary {

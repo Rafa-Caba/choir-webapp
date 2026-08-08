@@ -1,6 +1,6 @@
 // src/services/public/publicDtos.ts
 
-import type { TipTapContent } from '../../types/annoucement';
+import type { TipTapContent } from '../../types/announcement';
 
 export interface PublicEntityDto {
     readonly id?: string;

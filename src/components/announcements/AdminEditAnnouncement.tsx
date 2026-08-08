@@ -24,7 +24,7 @@ import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
 
 import { useAnnouncementStore } from '../../store/admin/useAnnouncementStore';
-import type { CreateAnnouncementPayload } from '../../types/annoucement';
+import type { CreateAnnouncementPayload } from '../../types/announcement';
 import { emptyEditorContent } from '../../utils/editorDefaults';
 import { parseText } from '../../utils/handleTextTipTap';
 import { TiptapEditor } from '../tiptap-components/TiptapEditor';

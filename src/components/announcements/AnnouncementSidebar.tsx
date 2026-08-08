@@ -27,7 +27,7 @@ import { TiptapViewer } from '../tiptap-components/TiptapViewer';
 import { emptyEditorContent } from '../../utils/editorDefaults';
 import { useWindowWidth } from '../../hooks/useWindowWidth';
 import { getTextFromTipTapJSON, parseText } from '../../utils/handleTextTipTap';
-import type { Announcement } from '../../types/annoucement';
+import type { Announcement } from '../../types/announcement';
 import { useAuth } from '../../context/AuthContext';
 
 export const AnnouncementSidebar = () => {

@@ -1,5 +1,5 @@
 {
-  "name": "erocras_page_react",
+  "name": "choir-webapp",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "test": "node -e \"import('node:fs').then(({ rmSync }) => rmSync('.test-dist', { recursive: true, force: true }))\" && tsc -p tsconfig.tests.json && node .test-dist/tests/run.js",
-    "verify:qa": "npm run typecheck && npm run lint && npm run build && npm test"
+    "verify:qa": "npm run typecheck && npm run lint && npm run build && npm test && npm run verify:contracts",
+    "verify:contracts": "node scripts/verify-web-contracts.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

@@ -1,7 +1,7 @@
 // src/services/admin/blog.ts
 
 import api from '../../api/axios';
-import type { TipTapContent } from '../../types/annoucement';
+import type { TipTapContent } from '../../types/announcement';
 import type { BlogComment, BlogPost, CreateBlogPayload } from '../../types/blog';
 
 const createBlogFormData = (

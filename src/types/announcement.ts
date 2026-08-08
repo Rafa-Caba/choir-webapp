@@ -1,4 +1,4 @@
-// src/types/annoucement.ts
+// src/types/announcement.ts
 
 import type { JsonObject, JsonValue } from './json';
 

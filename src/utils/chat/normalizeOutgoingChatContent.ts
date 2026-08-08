@@ -1,7 +1,7 @@
 // src/utils/chat/normalizeOutgoingChatContent.ts
 
 import type { JSONContent } from '@tiptap/react';
-import type { TipTapContent } from '../../types/annoucement';
+import type { TipTapContent } from '../../types/announcement';
 import type { JsonObject, JsonValue } from '../../types/json';
 
 const isJsonObject = (value: JsonValue | undefined): value is JsonObject => (

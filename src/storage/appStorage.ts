@@ -24,6 +24,10 @@ export const buildAppStorageKey = (...segments: readonly string[]): string => (
     `${APP_STORAGE_PREFIX}${segments.map((segment) => segment.trim()).join(':')}`
 );
 
+export const isChoirWebStorageKey = (key: string): boolean => (
+    key.startsWith(APP_STORAGE_PREFIX)
+);
+
 const getBrowserStorage = (): Storage | null => {
     if (typeof window === 'undefined') {
         return null;
@@ -81,7 +85,7 @@ export const removeStorageKeysMatching = (
 };
 
 export const clearChoirWebStorage = (): void => {
-    removeStorageKeysMatching((key) => key.startsWith(APP_STORAGE_PREFIX));
+    removeStorageKeysMatching(isChoirWebStorageKey);
     removeStorageValues(LEGACY_AUTH_KEYS);
 };
 

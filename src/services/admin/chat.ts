@@ -1,7 +1,7 @@
 // src/services/admin/chat.ts
 
 import api from '../../api/axios';
-import type { TipTapContent } from '../../types/annoucement';
+import type { TipTapContent } from '../../types/announcement';
 import type { MessageType } from '../../types/chat';
 import type {
     ChatMessageDto,

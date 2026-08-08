@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { getPublicAnnouncements } from '../../services/public/announcement';
-import type { Announcement } from '../../types/annoucement';
+import type { Announcement } from '../../types/announcement';
 import type { PublicResourceStatus } from './index';
 import {
     getPublicResourceError,

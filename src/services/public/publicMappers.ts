@@ -1,6 +1,6 @@
 // src/services/public/publicMappers.ts
 
-import type { Announcement } from '../../types/annoucement';
+import type { Announcement } from '../../types/announcement';
 import type { BlogPost } from '../../types/blog';
 import type { GalleryImage } from '../../types/gallery';
 import type { Instrument } from '../../types/instrument';

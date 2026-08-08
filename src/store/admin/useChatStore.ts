@@ -269,7 +269,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             connected: false,
         });
 
-        const socket: ChatSocket = io(ENV.API_ORIGIN, {
+        const socket: ChatSocket = io(ENV.SOCKET_ORIGIN, {
             path: '/socket.io',
             auth: buildSocketAuth(token, user),
             transports: ['websocket'],

@@ -1,4 +1,4 @@
-// src/components/announcements/AdminAnnouncements.tsx
+// src/components/announcements/AdminAnouncements.tsx
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
@@ -38,7 +38,7 @@ import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 
 import { useAnnouncementStore } from '../../store/admin/useAnnouncementStore';
 import { TiptapViewer } from '../tiptap-components/TiptapViewer';
-import type { Announcement } from '../../types/annoucement';
+import type { Announcement } from '../../types/announcement';
 import { parseText } from '../../utils/handleTextTipTap';
 
 interface SectionHeaderProps {

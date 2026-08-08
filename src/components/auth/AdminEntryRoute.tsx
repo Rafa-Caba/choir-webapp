@@ -5,6 +5,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { Dashboard } from '../../pages/admin/Dashboard';
 import { TenantContextGuard } from './TenantContextGuard';
+import { resolveAdminEntryRedirect } from '../../routing/adminNavigation';
 
 export const AdminEntryRoute = () => {
     const {
@@ -21,8 +22,13 @@ export const AdminEntryRoute = () => {
         );
     }
 
-    if (isSuperAdmin && !hasTenantContext) {
-        return <Navigate to="/admin/choirs" replace />;
+    const redirectPath = resolveAdminEntryRedirect({
+        isSuperAdmin,
+        hasTenantContext,
+    });
+
+    if (redirectPath) {
+        return <Navigate to={redirectPath} replace />;
     }
 
     return (

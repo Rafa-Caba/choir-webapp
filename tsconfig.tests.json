@@ -27,9 +27,12 @@
     "src/users/temporaryPassword.ts",
     "src/storage/appStorage.ts",
     "src/storage/chatStorage.ts",
-    "src/types/annoucement.ts",
     "src/types/chat.ts",
     "src/types/json.ts",
-    "src/services/admin/chatDtos.ts"
+    "src/services/admin/chatDtos.ts",
+    "src/config/envParsing.ts",
+    "src/routing/index.ts",
+    "src/routing/adminNavigation.ts",
+    "src/types/announcement.ts"
   ]
 }
