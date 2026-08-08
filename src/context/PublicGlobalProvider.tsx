@@ -19,32 +19,23 @@ import { useThemeStore } from '../store/public/useThemeStore';
 import type { PublicPageStatus } from '../types/public';
 import { normalizeChoirCode } from '../utils/choirCode';
 import {
+    applyNeutralThemeToDocument,
+    setDocumentBrand,
+} from '../utils/documentBranding';
+import {
     PublicGlobalContext,
     type PublicGlobalContextValue,
 } from './PublicGlobalContext';
+
+const PUBLIC_CHOIR_UNAVAILABLE_CODES = new Set([
+    'CHOIR_INACTIVE',
+    'PUBLIC_CHOIR_INACTIVE',
+]);
 
 interface PublicGlobalProviderProps {
     readonly choirCode: string;
     readonly children: ReactNode;
 }
-
-const resetThemeVariables = (): void => {
-    const root = document.documentElement;
-    const variableNames = [
-        '--color-primary',
-        '--color-accent',
-        '--color-background',
-        '--color-text',
-        '--color-card',
-        '--color-button',
-        '--color-nav',
-        '--color-button-text',
-        '--color-secondary-text',
-        '--color-border',
-    ];
-
-    variableNames.forEach((variableName) => root.style.removeProperty(variableName));
-};
 
 export const PublicGlobalProvider = ({
     choirCode,
@@ -77,12 +68,13 @@ export const PublicGlobalProvider = ({
 
     useLayoutEffect(() => {
         resetPublicStores();
-        resetThemeVariables();
-        document.title = 'Choirs';
+        applyNeutralThemeToDocument();
+        setDocumentBrand('Choirs', null);
 
         return () => {
             resetPublicStores();
-            resetThemeVariables();
+            applyNeutralThemeToDocument();
+            setDocumentBrand('Choirs', null);
         };
     }, [normalizedChoirCode]);
 
@@ -140,6 +132,14 @@ export const PublicGlobalProvider = ({
 
         if (settingsStatus === 'error' && errorCode === 'PUBLIC_CHOIR_NOT_FOUND') {
             return 'not-found';
+        }
+
+        if (
+            settingsStatus === 'error' &&
+            errorCode &&
+            PUBLIC_CHOIR_UNAVAILABLE_CODES.has(errorCode)
+        ) {
+            return 'unavailable';
         }
 
         if (settingsStatus === 'error') {

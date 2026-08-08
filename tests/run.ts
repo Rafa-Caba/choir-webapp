@@ -21,6 +21,10 @@ import {
     registerTenantStoreScope,
 } from '../src/store/tenantStoreScope.js';
 import { isValidTemporaryPassword } from '../src/users/temporaryPassword.js';
+import {
+    APP_STORAGE_PREFIX,
+    buildAppStorageKey,
+} from '../src/storage/appStorage.js';
 
 interface TestCase {
     readonly name: string;
@@ -186,6 +190,29 @@ const testCases: TestCase[] = [
             assertEqual(isValidTemporaryPassword('short'), false);
             assertEqual(isValidTemporaryPassword('choirs-password-2026'), false);
             assertEqual(isValidTemporaryPassword('CHOIRS!PASSWORD2026'), false);
+        },
+    },
+    {
+        name: 'chat cache keys are isolated by choir and user',
+        run: () => {
+            assertEqual(APP_STORAGE_PREFIX, 'choir-web:');
+            assertEqual(
+                buildAppStorageKey(' choir-a ', ' user-1 ', 'chat'),
+                'choir-web:choir-a:user-1:chat',
+            );
+            assertEqual(
+                buildAppStorageKey('choir-b', 'user-1', 'chat'),
+                'choir-web:choir-b:user-1:chat',
+            );
+        },
+    },
+    {
+        name: 'inactive choir sessions map to a dedicated safe message',
+        run: () => {
+            assertEqual(
+                getAuthErrorMessage('CHOIR_INACTIVE', 'Fallback'),
+                'El coro está inactivo o ya no está disponible.',
+            );
         },
     },
     {

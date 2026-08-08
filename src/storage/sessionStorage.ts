@@ -97,10 +97,6 @@ export const persistAuthSession = (session: AuthSessionResponse): void => {
         APP_STORAGE_KEYS.requiresPasswordChange,
         String(session.requiresPasswordChange),
     );
-
-    writeStorageValue('token', session.accessToken);
-    writeStorageValue('refreshToken', session.refreshToken);
-    writeStorageValue('role', session.user.role);
 };
 
 export const clearAuthSession = (): void => {

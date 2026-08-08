@@ -5,6 +5,7 @@ import { io, type Socket } from 'socket.io-client';
 import { create } from 'zustand';
 
 import ENV from '../../config/env';
+import { authBridge } from '../../api/authTokenBridge';
 import {
     getChatHistory,
     sendTextMessage,
@@ -12,55 +13,37 @@ import {
     uploadChatMedia,
     type ChatAttachmentType,
 } from '../../services/admin/chat';
-import type { ChatMessageDto } from '../../services/admin/chatDtos';
 import { getUserDirectory } from '../../services/admin/users';
+import {
+    readChatCache,
+    writeChatCache,
+} from '../../storage/chatStorage';
 import { useTargetChoirStore } from '../platform/useTargetChoirStore';
 import { getActiveTenantChoirId } from '../tenantStoreScope';
 import type { User } from '../../types/auth';
-import type { ChatMessage, MessageType } from '../../types/chat';
+import type {
+    ChatClientToServerEvents,
+    ChatConnectedUser,
+    ChatMessage,
+    ChatServerToClientEvents,
+    MessageType,
+} from '../../types/chat';
 import { normalizeChatMessage } from '../../utils/chat/normalizeChatMessage';
+import { normalizeOutgoingChatContent } from '../../utils/chat/normalizeOutgoingChatContent';
 
-interface ConnectedUser {
-    readonly id: string;
-    readonly name: string;
-    readonly username: string;
-    readonly imageUrl?: string;
-}
-
-interface SocketTypingEvent {
-    readonly username: string;
-    readonly isTyping: boolean;
-}
-
-interface SessionDisconnectedEvent {
-    readonly code?: string;
-    readonly message?: string;
-}
-
-interface ServerToClientEvents {
-    readonly 'new-message': (message: ChatMessageDto) => void;
-    readonly 'message-updated': (message: ChatMessageDto) => void;
-    readonly 'online-users': (users: readonly ConnectedUser[]) => void;
-    readonly 'user-typing': (payload: SocketTypingEvent) => void;
-    readonly 'session-disconnected': (payload: SessionDisconnectedEvent) => void;
-}
-
-interface ClientToServerEvents {
-    readonly typing: (isTyping: boolean) => void;
-}
-
-type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+type ChatSocket = Socket<ChatServerToClientEvents, ChatClientToServerEvents>;
 
 interface ChatState {
     readonly messages: ChatMessage[];
     readonly currentChoirId: string | null;
+    readonly currentUserId: string | null;
     readonly connected: boolean;
     readonly socket: ChatSocket | null;
     readonly loading: boolean;
     readonly isSending: boolean;
     readonly hasMoreMessages: boolean;
-    readonly onlineUsers: ConnectedUser[];
-    readonly allUsers: ConnectedUser[];
+    readonly onlineUsers: ChatConnectedUser[];
+    readonly allUsers: ChatConnectedUser[];
     readonly typingUsers: string[];
     readonly connect: (token: string, user: User) => void;
     readonly disconnect: () => void;
@@ -68,7 +51,7 @@ interface ChatState {
         content: JSONContent,
         file?: File,
         type?: ChatAttachmentType,
-        replyToId?: string,
+        replyTo?: string,
     ) => Promise<void>;
     readonly sendTyping: (isTyping: boolean) => void;
     readonly reactToMessage: (messageId: string, emoji: string) => Promise<void>;
@@ -99,7 +82,7 @@ const buildSocketAuth = (
     };
 };
 
-const mapDirectoryUser = (user: User): ConnectedUser => ({
+const mapDirectoryUser = (user: User): ChatConnectedUser => ({
     id: user.id,
     name: user.name,
     username: user.username,
@@ -136,14 +119,28 @@ const mergeMessage = (
     ));
 };
 
-const isCurrentChatChoir = (choirId: string): boolean => (
-    choirId === getActiveTenantChoirId()
-    && choirId === useChatStore.getState().currentChoirId
-);
+const isCurrentChatSession = (choirId: string, userId: string): boolean => {
+    const state = useChatStore.getState();
+
+    return choirId === getActiveTenantChoirId()
+        && choirId === state.currentChoirId
+        && userId === state.currentUserId;
+};
+
+const persistChatMessages = (
+    choirId: string,
+    userId: string,
+    messages: readonly ChatMessage[],
+): void => {
+    if (isCurrentChatSession(choirId, userId)) {
+        writeChatCache(choirId, userId, messages);
+    }
+};
 
 export const useChatStore = create<ChatState>((set, get) => ({
     messages: [],
     currentChoirId: null,
+    currentUserId: null,
     onlineUsers: [],
     allUsers: [],
     typingUsers: [],
@@ -154,9 +151,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     hasMoreMessages: true,
 
     loadHistory: async () => {
-        const choirId = get().currentChoirId;
+        const { currentChoirId: choirId, currentUserId: userId } = get();
 
-        if (!choirId || choirId !== getActiveTenantChoirId()) {
+        if (!choirId || !userId || !isCurrentChatSession(choirId, userId)) {
             return;
         }
 
@@ -165,20 +162,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
         try {
             const history = await getChatHistory(50);
 
-            if (isCurrentChatChoir(choirId)) {
-                set({ messages: history.map(normalizeChatMessage) });
+            if (isCurrentChatSession(choirId, userId)) {
+                const messages = history.map(normalizeChatMessage);
+                set({ messages });
+                persistChatMessages(choirId, userId, messages);
             }
         } finally {
-            if (isCurrentChatChoir(choirId)) {
+            if (isCurrentChatSession(choirId, userId)) {
                 set({ loading: false });
             }
         }
     },
 
     loadMoreMessages: async () => {
-        const { messages, loading, currentChoirId } = get();
+        const {
+            messages,
+            loading,
+            currentChoirId,
+            currentUserId,
+        } = get();
 
-        if (loading || messages.length === 0 || !currentChoirId) {
+        if (
+            loading ||
+            messages.length === 0 ||
+            !currentChoirId ||
+            !currentUserId ||
+            !isCurrentChatSession(currentChoirId, currentUserId)
+        ) {
             return false;
         }
 
@@ -188,7 +198,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const oldestMessage = messages[0];
             const moreMessages = await getChatHistory(50, oldestMessage.createdAt);
 
-            if (!isCurrentChatChoir(currentChoirId)) {
+            if (!isCurrentChatSession(currentChoirId, currentUserId)) {
                 return false;
             }
 
@@ -198,51 +208,65 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
 
             const normalizedMessages = moreMessages.map(normalizeChatMessage);
-            set((state) => ({ messages: [...normalizedMessages, ...state.messages] }));
+            const nextMessages = [...normalizedMessages, ...get().messages];
+            set({ messages: nextMessages });
+            persistChatMessages(currentChoirId, currentUserId, nextMessages);
             return true;
         } finally {
-            if (isCurrentChatChoir(currentChoirId)) {
+            if (isCurrentChatSession(currentChoirId, currentUserId)) {
                 set({ loading: false });
             }
         }
     },
 
     fetchDirectory: async () => {
-        const choirId = get().currentChoirId;
+        const { currentChoirId: choirId, currentUserId: userId } = get();
 
-        if (!choirId || choirId !== getActiveTenantChoirId()) {
+        if (!choirId || !userId || !isCurrentChatSession(choirId, userId)) {
             return;
         }
 
         const users = await getUserDirectory();
 
-        if (isCurrentChatChoir(choirId)) {
+        if (isCurrentChatSession(choirId, userId)) {
             set({ allUsers: users.map(mapDirectoryUser) });
         }
     },
 
     connect: (token, user) => {
         const chatChoirId = resolveChatChoirId(user);
+        const chatUserId = user.id;
 
-        if (!token || !chatChoirId || chatChoirId !== getActiveTenantChoirId()) {
+        if (
+            !token ||
+            !chatChoirId ||
+            !chatUserId ||
+            chatChoirId !== getActiveTenantChoirId()
+        ) {
             get().disconnect();
             return;
         }
 
         const state = get();
 
-        if (state.socket?.connected && state.currentChoirId === chatChoirId) {
+        if (
+            state.socket?.connected &&
+            state.currentChoirId === chatChoirId &&
+            state.currentUserId === chatUserId
+        ) {
             return;
         }
 
         state.socket?.disconnect();
         set({
-            messages: [],
+            messages: readChatCache(chatChoirId, chatUserId),
             hasMoreMessages: true,
             currentChoirId: chatChoirId,
+            currentUserId: chatUserId,
             onlineUsers: [],
             allUsers: [],
             typingUsers: [],
+            connected: false,
         });
 
         const socket: ChatSocket = io(ENV.API_ORIGIN, {
@@ -253,14 +277,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         });
 
         socket.on('connect', () => {
-            if (isCurrentChatChoir(chatChoirId)) {
+            if (isCurrentChatSession(chatChoirId, chatUserId)) {
                 set({ connected: true });
             } else {
                 socket.disconnect();
             }
         });
         socket.on('disconnect', () => {
-            if (get().currentChoirId === chatChoirId) {
+            if (isCurrentChatSession(chatChoirId, chatUserId)) {
                 set({ connected: false, onlineUsers: [] });
             }
         });
@@ -268,32 +292,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const message = normalizeChatMessage(incoming);
 
             if (
-                !isCurrentChatChoir(chatChoirId)
-                || (message.choirId && message.choirId !== chatChoirId)
+                !isCurrentChatSession(chatChoirId, chatUserId) ||
+                (message.choirId && message.choirId !== chatChoirId)
             ) {
                 return;
             }
 
-            set((current) => ({
-                messages: mergeMessage(current.messages, message),
-            }));
+            const messages = mergeMessage(get().messages, message);
+            set({ messages });
+            persistChatMessages(chatChoirId, chatUserId, messages);
         });
         socket.on('message-updated', (incoming) => {
             const message = normalizeChatMessage(incoming);
 
             if (
-                !isCurrentChatChoir(chatChoirId)
-                || (message.choirId && message.choirId !== chatChoirId)
+                !isCurrentChatSession(chatChoirId, chatUserId) ||
+                (message.choirId && message.choirId !== chatChoirId)
             ) {
                 return;
             }
 
-            set((current) => ({
-                messages: mergeMessage(current.messages, message),
-            }));
+            const messages = mergeMessage(get().messages, message);
+            set({ messages });
+            persistChatMessages(chatChoirId, chatUserId, messages);
         });
         socket.on('online-users', (users) => {
-            if (!isCurrentChatChoir(chatChoirId)) {
+            if (!isCurrentChatSession(chatChoirId, chatUserId)) {
                 return;
             }
 
@@ -303,7 +327,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             set({ onlineUsers: [...uniqueUsers] });
         });
         socket.on('user-typing', ({ username, isTyping }) => {
-            if (!isCurrentChatChoir(chatChoirId)) {
+            if (!isCurrentChatSession(chatChoirId, chatUserId)) {
                 return;
             }
 
@@ -315,20 +339,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     : current.typingUsers.filter((entry) => entry !== username),
             }));
         });
-        socket.on('session-disconnected', () => {
+        socket.on('session-disconnected', (payload) => {
+            const shouldExpireCurrentSession = isCurrentChatSession(
+                chatChoirId,
+                chatUserId,
+            );
+
             socket.disconnect();
 
-            if (get().currentChoirId === chatChoirId) {
-                set({
-                    connected: false,
-                    socket: null,
-                    onlineUsers: [],
-                    typingUsers: [],
-                });
+            if (!shouldExpireCurrentSession) {
+                return;
             }
+
+            set({
+                connected: false,
+                socket: null,
+                onlineUsers: [],
+                typingUsers: [],
+            });
+
+            void authBridge.expireSession({
+                code: payload?.code ?? 'SESSION_REVOKED',
+                message: payload?.message,
+            });
         });
 
-        set({ socket, currentChoirId: chatChoirId });
+        set({
+            socket,
+            currentChoirId: chatChoirId,
+            currentUserId: chatUserId,
+        });
     },
 
     disconnect: () => {
@@ -341,6 +381,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             typingUsers: [],
             messages: [],
             currentChoirId: null,
+            currentUserId: null,
             hasMoreMessages: true,
             loading: false,
             isSending: false,
@@ -356,9 +397,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     },
 
     reactToMessage: async (messageId, emoji) => {
-        const choirId = get().currentChoirId;
+        const {
+            currentChoirId: choirId,
+            currentUserId: userId,
+        } = get();
 
-        if (!choirId || !isCurrentChatChoir(choirId)) {
+        if (!choirId || !userId || !isCurrentChatSession(choirId, userId)) {
             return;
         }
 
@@ -366,17 +410,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
             await toggleReaction(messageId, emoji),
         );
 
-        if (isCurrentChatChoir(choirId)) {
-            set((current) => ({
-                messages: mergeMessage(current.messages, updatedMessage),
-            }));
+        if (isCurrentChatSession(choirId, userId)) {
+            const messages = mergeMessage(get().messages, updatedMessage);
+            set({ messages });
+            persistChatMessages(choirId, userId, messages);
         }
     },
 
-    sendMessage: async (content, file, attachmentType, replyToId) => {
-        const { socket, currentChoirId } = get();
+    sendMessage: async (content, file, attachmentType, replyTo) => {
+        const {
+            socket,
+            currentChoirId,
+            currentUserId,
+        } = get();
 
-        if (!socket?.connected || !currentChoirId || !isCurrentChatChoir(currentChoirId)) {
+        if (
+            !socket?.connected ||
+            !currentChoirId ||
+            !currentUserId ||
+            !isCurrentChatSession(currentChoirId, currentUserId)
+        ) {
             throw new Error('No active chat socket connection');
         }
 
@@ -388,19 +441,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 ? await uploadChatMedia(file, attachmentType)
                 : null;
             const sentMessage = normalizeChatMessage(await sendTextMessage({
-                content,
+                content: normalizeOutgoingChatContent(content),
                 type: toMessageType(attachmentType),
                 ...(upload ? { mediaAssetId: upload.assetId } : {}),
-                ...(replyToId ? { replyToId } : {}),
+                ...(replyTo ? { replyTo } : {}),
             }));
 
-            if (isCurrentChatChoir(currentChoirId)) {
-                set((current) => ({
-                    messages: mergeMessage(current.messages, sentMessage),
-                }));
+            if (isCurrentChatSession(currentChoirId, currentUserId)) {
+                const messages = mergeMessage(get().messages, sentMessage);
+                set({ messages });
+                persistChatMessages(currentChoirId, currentUserId, messages);
             }
         } finally {
-            if (isCurrentChatChoir(currentChoirId)) {
+            if (isCurrentChatSession(currentChoirId, currentUserId)) {
                 set({ isSending: false });
             }
         }

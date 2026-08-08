@@ -1,6 +1,6 @@
 // src/storage/appStorage.ts
 
-const APP_STORAGE_PREFIX = 'choir-web:';
+export const APP_STORAGE_PREFIX = 'choir-web:';
 
 export const APP_STORAGE_KEYS = Object.freeze({
     accessToken: `${APP_STORAGE_PREFIX}session:access-token`,
@@ -19,6 +19,10 @@ export const LEGACY_AUTH_KEYS = Object.freeze([
     'refreshToken',
     'role',
 ]);
+
+export const buildAppStorageKey = (...segments: readonly string[]): string => (
+    `${APP_STORAGE_PREFIX}${segments.map((segment) => segment.trim()).join(':')}`
+);
 
 const getBrowserStorage = (): Storage | null => {
     if (typeof window === 'undefined') {
@@ -54,7 +58,9 @@ export const removeStorageValues = (keys: readonly string[]): void => {
     keys.forEach((key) => storage.removeItem(key));
 };
 
-export const clearChoirWebStorage = (): void => {
+export const removeStorageKeysMatching = (
+    predicate: (key: string) => boolean,
+): void => {
     const storage = getBrowserStorage();
 
     if (!storage) {
@@ -66,13 +72,17 @@ export const clearChoirWebStorage = (): void => {
     for (let index = 0; index < storage.length; index += 1) {
         const key = storage.key(index);
 
-        if (key?.startsWith(APP_STORAGE_PREFIX)) {
+        if (key && predicate(key)) {
             keysToRemove.push(key);
         }
     }
 
     keysToRemove.forEach((key) => storage.removeItem(key));
-    LEGACY_AUTH_KEYS.forEach((key) => storage.removeItem(key));
+};
+
+export const clearChoirWebStorage = (): void => {
+    removeStorageKeysMatching((key) => key.startsWith(APP_STORAGE_PREFIX));
+    removeStorageValues(LEGACY_AUTH_KEYS);
 };
 
 export const readLegacyAccessToken = (): string | null => readStorageValue('token');

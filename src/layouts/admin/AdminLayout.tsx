@@ -1,6 +1,6 @@
 // src/layouts/admin/AdminLayout.tsx
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
@@ -56,6 +56,17 @@ import { useAdminSettingsStore } from '../../store/admin/useSettingsStore';
 import { useGalleryStore } from '../../store/admin/useGalleryStore';
 import { formatName } from '../../utils';
 import { MuiAppThemeProvider } from '../../theme/mui/MuiAppThemeProvider';
+import type { AdminBrandCache } from '../../storage/adminBrandStorage';
+import {
+    readAdminBrandCache,
+    writeAdminBrandLogo,
+    writeAdminBrandTitle,
+} from '../../storage/adminBrandStorage';
+import { setDocumentBrand } from '../../utils/documentBranding';
+
+interface CachedBrand extends AdminBrandCache {
+    readonly choirId: string | null;
+}
 
 interface AdminNavigationItem {
     label: string;
@@ -71,62 +82,6 @@ const rightRailWidth = 270;
 const headerHeight = 76;
 const footerHeight = 58;
 // const bottomNavHeight = 74; // Enable again if you want to use the mobile bottom nav
-
-const brandTitleStoragePrefix = 'choir-web:brand-title';
-const brandLogoStoragePrefix = 'choir-web:brand-logo';
-const defaultFaviconUrl = '/images/erocrasLogo.png';
-
-interface CachedBrand {
-    readonly choirId: string | null;
-    readonly webTitle: string;
-    readonly logoUrl: string;
-}
-
-const getTenantBrandStorageKey = (prefix: string, choirId: string): string => (
-    `${prefix}:${choirId}`
-);
-
-const readLocalStorageValue = (key: string): string => {
-    if (typeof window === 'undefined') {
-        return '';
-    }
-
-    try {
-        return window.localStorage.getItem(key) || '';
-    } catch {
-        return '';
-    }
-};
-
-const writeLocalStorageValue = (key: string, value: string): void => {
-    if (typeof window === 'undefined' || value.trim() === '') {
-        return;
-    }
-
-    try {
-        window.localStorage.setItem(key, value);
-    } catch {
-        return;
-    }
-};
-
-const setDocumentFavicon = (href: string): void => {
-    if (typeof document === 'undefined' || href.trim() === '') {
-        return;
-    }
-
-    const existingFavicon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
-
-    if (existingFavicon) {
-        existingFavicon.href = href;
-        return;
-    }
-
-    const favicon = document.createElement('link');
-    favicon.rel = 'icon';
-    favicon.href = href;
-    document.head.appendChild(favicon);
-};
 
 const AdminLayout = () => {
     const navigate = useNavigate();
@@ -197,32 +152,28 @@ const AdminLayout = () => {
             return;
         }
 
+        const cachedTenantBrand = readAdminBrandCache(effectiveChoirId);
         setCachedBrand({
             choirId: effectiveChoirId,
-            webTitle: readLocalStorageValue(
-                getTenantBrandStorageKey(brandTitleStoragePrefix, effectiveChoirId),
-            ),
-            logoUrl: readLocalStorageValue(
-                getTenantBrandStorageKey(brandLogoStoragePrefix, effectiveChoirId),
-            ),
+            webTitle: cachedTenantBrand.webTitle,
+            logoUrl: cachedTenantBrand.logoUrl,
         });
     }, [effectiveChoirId]);
 
-    useEffect(() => {
-        document.title = isSuperAdmin && !hasTenantContext
-            ? 'Choir Platform'
-            : resolvedWebTitle || 'Choir App';
-        setDocumentFavicon(resolvedLogoUrl || defaultFaviconUrl);
+    useLayoutEffect(() => {
+        setDocumentBrand(
+            isSuperAdmin && !hasTenantContext
+                ? 'Choir Platform'
+                : resolvedWebTitle || 'Choir App',
+            hasTenantContext ? resolvedLogoUrl || null : null,
+        );
 
         if (!effectiveChoirId) {
             return;
         }
 
         if (realWebTitle && realWebTitle !== cachedWebTitle) {
-            writeLocalStorageValue(
-                getTenantBrandStorageKey(brandTitleStoragePrefix, effectiveChoirId),
-                realWebTitle,
-            );
+            writeAdminBrandTitle(effectiveChoirId, realWebTitle);
             setCachedBrand((currentBrand) => ({
                 choirId: effectiveChoirId,
                 webTitle: realWebTitle,
@@ -233,10 +184,7 @@ const AdminLayout = () => {
         }
 
         if (realLogoUrl && realLogoUrl !== cachedLogoUrl) {
-            writeLocalStorageValue(
-                getTenantBrandStorageKey(brandLogoStoragePrefix, effectiveChoirId),
-                realLogoUrl,
-            );
+            writeAdminBrandLogo(effectiveChoirId, realLogoUrl);
             setCachedBrand((currentBrand) => ({
                 choirId: effectiveChoirId,
                 webTitle: currentBrand.choirId === effectiveChoirId

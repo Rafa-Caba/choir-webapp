@@ -14,4 +14,4 @@ export interface PublicSettingsResponse {
     readonly settings: AppSettings;
 }
 
-export type PublicPageStatus = 'loading' | 'ready' | 'not-found' | 'error';
+export type PublicPageStatus = 'loading' | 'ready' | 'not-found' | 'unavailable' | 'error';

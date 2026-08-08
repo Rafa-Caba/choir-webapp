@@ -38,11 +38,15 @@ import ArticleRoundedIcon from '@mui/icons-material/ArticleRounded';
 import { Footer } from '../../components/components-public/Footer';
 import { MuiAppThemeProvider } from '../../theme/mui/MuiAppThemeProvider';
 import { PublicSiteState } from '../../components/public/PublicSiteState';
+import { PublicChoirNotFound } from '../../pages/public/states/PublicChoirNotFound';
+import { PublicChoirUnavailable } from '../../pages/public/states/PublicChoirUnavailable';
+import { PublicLoadError } from '../../pages/public/states/PublicLoadError';
 import { usePublicGlobal } from '../../context/PublicGlobalContext';
 import { readPublicBrandCache, writePublicBrandLogo, writePublicBrandTitle } from '../../storage/publicBrandStorage';
 import { useSettingsStore } from '../../store/public/useSettingsStore';
 import { useGalleryStore } from '../../store/public/useGalleryStore';
 import { buildPublicChoirPath } from '../../utils/choirCode';
+import { setDocumentBrand } from '../../utils/documentBranding';
 
 interface PublicNavigationItem {
     label: string;
@@ -56,24 +60,6 @@ const sideRailWidth = 230;
 const mobileHeaderHeight = 72;
 const desktopHeaderHeight = 118;
 const publicFooterHeight = 58;
-
-const setDocumentFavicon = (href: string): void => {
-    if (typeof document === 'undefined' || href.trim() === '') {
-        return;
-    }
-
-    const existingFavicon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
-
-    if (existingFavicon) {
-        existingFavicon.href = href;
-        return;
-    }
-
-    const favicon = document.createElement('link');
-    favicon.rel = 'icon';
-    favicon.href = href;
-    document.head.appendChild(favicon);
-};
 
 const getCompactTitle = (title: string) => {
     const words = title
@@ -96,7 +82,7 @@ const PublicLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { choirCode, choir, status, errorMessage } = usePublicGlobal();
+    const { choirCode, choir, status } = usePublicGlobal();
     const settings = useSettingsStore((state) => (
         state.loadedChoirCode === choirCode ? state.settings : null
     ));
@@ -118,44 +104,49 @@ const PublicLayout = () => {
     const leftMenuImage = images.find((image) => image.imageLeftMenu);
     const rightMenuImage = images.find((image) => image.imageRightMenu);
 
-    const realWebTitle = settings?.webTitle?.trim() || '';
-    const realLogoUrl = (
+    const serverWebTitle = settings?.webTitle?.trim() || choir?.name?.trim() || '';
+    const serverLogoUrl = (
         settings?.logoUrl?.trim() ||
         choir?.logoUrl?.trim() ||
         logoImage?.imageUrl?.trim() ||
         ''
     );
-    const resolvedWebTitle = realWebTitle || cachedWebTitle;
-    const resolvedLogoUrl = realLogoUrl || cachedLogoUrl;
-    const publicTitle = resolvedWebTitle ? `${resolvedWebTitle} Oficial` : 'Cargando sitio...';
+    const canUseVerifiedBrand = status === 'ready';
+    const resolvedWebTitle = canUseVerifiedBrand
+        ? serverWebTitle || cachedWebTitle
+        : '';
+    const resolvedLogoUrl = canUseVerifiedBrand
+        ? serverLogoUrl || cachedLogoUrl
+        : '';
+    const publicTitle = resolvedWebTitle || 'Choirs';
     const compactTitle = getCompactTitle(publicTitle);
 
     useEffect(() => {
-        if (resolvedWebTitle) {
-            document.title = resolvedWebTitle;
+        if (status !== 'ready') {
+            setDocumentBrand('Choirs', null);
+            return;
         }
 
-        if (realWebTitle && realWebTitle !== cachedWebTitle) {
-            setCachedWebTitle(realWebTitle);
-            writePublicBrandTitle(choirCode, realWebTitle);
+        setDocumentBrand(publicTitle, resolvedLogoUrl || null);
+
+        if (serverWebTitle && serverWebTitle !== cachedWebTitle) {
+            setCachedWebTitle(serverWebTitle);
+            writePublicBrandTitle(choirCode, serverWebTitle);
         }
 
-        if (resolvedLogoUrl) {
-            setDocumentFavicon(resolvedLogoUrl);
-        }
-
-        if (realLogoUrl && realLogoUrl !== cachedLogoUrl) {
-            setCachedLogoUrl(realLogoUrl);
-            writePublicBrandLogo(choirCode, realLogoUrl);
+        if (serverLogoUrl && serverLogoUrl !== cachedLogoUrl) {
+            setCachedLogoUrl(serverLogoUrl);
+            writePublicBrandLogo(choirCode, serverLogoUrl);
         }
     }, [
         cachedLogoUrl,
         cachedWebTitle,
         choirCode,
-        realLogoUrl,
-        realWebTitle,
+        publicTitle,
         resolvedLogoUrl,
-        resolvedWebTitle,
+        serverLogoUrl,
+        serverWebTitle,
+        status,
     ]);
 
     const fromAdmin = new URLSearchParams(location.search).get('fromAdmin') === 'true';
@@ -405,21 +396,15 @@ const PublicLayout = () => {
     }
 
     if (status === 'not-found') {
-        return (
-            <PublicSiteState
-                title="Coro no encontrado"
-                message="El coro solicitado no existe, está inactivo o ya no tiene una página pública disponible."
-            />
-        );
+        return <PublicChoirNotFound />;
+    }
+
+    if (status === 'unavailable') {
+        return <PublicChoirUnavailable />;
     }
 
     if (status === 'error') {
-        return (
-            <PublicSiteState
-                title="No fue posible cargar el sitio"
-                message={errorMessage ?? 'Ocurrió un problema al cargar el contenido público de este coro.'}
-            />
-        );
+        return <PublicLoadError />;
     }
 
     return (

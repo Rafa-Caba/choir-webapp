@@ -1,6 +1,7 @@
 // src/types/chat.ts
 
 import type { TipTapContent } from './annoucement';
+import type { ChatMessageDto } from '../services/admin/chatDtos';
 
 export interface ChatUserSummary {
     id: string;
@@ -49,5 +50,34 @@ export interface NewMessagePayload {
     imageUrl?: string;
     audioUrl?: string;
     mediaAssetId?: string;
-    replyToId?: string;
+    replyTo?: string;
+}
+
+export interface ChatConnectedUser {
+    readonly id: string;
+    readonly name: string;
+    readonly username: string;
+    readonly imageUrl?: string;
+}
+
+export interface ChatSocketTypingEvent {
+    readonly username: string;
+    readonly isTyping: boolean;
+}
+
+export interface ChatSessionDisconnectedEvent {
+    readonly code?: string;
+    readonly message?: string;
+}
+
+export interface ChatServerToClientEvents {
+    readonly 'new-message': (message: ChatMessageDto) => void;
+    readonly 'message-updated': (message: ChatMessageDto) => void;
+    readonly 'online-users': (users: readonly ChatConnectedUser[]) => void;
+    readonly 'user-typing': (payload: ChatSocketTypingEvent) => void;
+    readonly 'session-disconnected': (payload?: ChatSessionDisconnectedEvent) => void;
+}
+
+export interface ChatClientToServerEvents {
+    readonly typing: (isTyping: boolean) => void;
 }

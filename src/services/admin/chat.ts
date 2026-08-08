@@ -1,7 +1,7 @@
 // src/services/admin/chat.ts
 
 import api from '../../api/axios';
-import type { JSONContent } from '@tiptap/react';
+import type { TipTapContent } from '../../types/annoucement';
 import type { MessageType } from '../../types/chat';
 import type {
     ChatMessageDto,
@@ -12,10 +12,10 @@ import type {
 export type ChatAttachmentType = 'image' | 'video' | 'audio' | 'file';
 
 export interface SendMessageRequest {
-    readonly content: JSONContent;
+    readonly content: TipTapContent;
     readonly type: MessageType;
     readonly mediaAssetId?: string;
-    readonly replyToId?: string;
+    readonly replyTo?: string;
 }
 
 const createChatFormData = (file: File, type: ChatAttachmentType): FormData => {

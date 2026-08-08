@@ -2,6 +2,7 @@
 
 import {
     useEffect,
+    useLayoutEffect,
     useState,
     type FormEvent,
     type MouseEvent,
@@ -27,6 +28,7 @@ import {
 } from '@mui/material';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import LoginRoundedIcon from '@mui/icons-material/LoginRounded';
+import QueueMusicRoundedIcon from '@mui/icons-material/QueueMusicRounded';
 import SecurityRoundedIcon from '@mui/icons-material/SecurityRounded';
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
@@ -36,6 +38,10 @@ import { useAuth } from '../../context/AuthContext';
 import { MuiAppThemeProvider } from '../../theme/mui/MuiAppThemeProvider';
 import type { ApiErrorResponse } from '../../types/api/http';
 import type { AccessMode } from '../../types/auth';
+import {
+    applyNeutralThemeToDocument,
+    setDocumentBrand,
+} from '../../utils/documentBranding';
 
 const TENANT_LOGIN_FALLBACK = 'No fue posible iniciar sesión en el coro.';
 const PLATFORM_LOGIN_FALLBACK = 'No fue posible iniciar sesión en la plataforma.';
@@ -60,6 +66,11 @@ export const Login = () => {
     const [submitting, setSubmitting] = useState(false);
     const [formErrorMessage, setFormErrorMessage] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+
+    useLayoutEffect(() => {
+        applyNeutralThemeToDocument();
+        setDocumentBrand('Choir App', null);
+    }, []);
 
     useEffect(() => {
         if (submitting || status !== 'authenticated') {
@@ -183,18 +194,16 @@ export const Login = () => {
                         }}
                     >
                         <Avatar
-                            src="/images/erocrasLogo.png"
-                            alt="Choir App"
+                            aria-label="Choir App"
                             sx={{
                                 width: 44,
                                 height: 44,
                                 border: '1px solid rgba(255, 255, 255, 0.28)',
                                 bgcolor: 'rgba(255, 255, 255, 0.18)',
                                 color: 'var(--color-button-text)',
-                                fontWeight: 950,
                             }}
                         >
-                            CA
+                            <QueueMusicRoundedIcon />
                         </Avatar>
 
                         <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -248,17 +257,24 @@ export const Login = () => {
                     >
                         <Box sx={{ textAlign: 'center', mb: 3 }}>
                             <Avatar
-                                src="/images/erocrasLogo.png"
-                                alt="Choir App"
+                                aria-label={selectedMode === 'platform'
+                                    ? 'Acceso de plataforma'
+                                    : 'Acceso de coro'}
                                 sx={{
                                     width: { xs: 108, md: 126 },
                                     height: { xs: 108, md: 126 },
                                     mx: 'auto',
                                     mb: 2,
+                                    bgcolor: 'color-mix(in srgb, var(--color-primary) 16%, var(--color-card))',
+                                    color: 'var(--color-primary)',
                                     border: '3px solid var(--color-primary)',
                                     boxShadow: '0 14px 38px rgba(15, 23, 42, 0.18)',
                                 }}
-                            />
+                            >
+                                {selectedMode === 'platform'
+                                    ? <SecurityRoundedIcon sx={{ fontSize: 56 }} />
+                                    : <GroupsRoundedIcon sx={{ fontSize: 56 }} />}
+                            </Avatar>
                             <Typography
                                 component="h1"
                                 sx={{

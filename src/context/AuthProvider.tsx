@@ -9,7 +9,10 @@ import {
     type ReactNode,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { registerAuthBridge } from '../api/authTokenBridge';
+import {
+    registerAuthBridge,
+    type SessionExpiryReason,
+} from '../api/authTokenBridge';
 import {
     changeAuthenticatedPassword,
     getCurrentSession,
@@ -31,6 +34,9 @@ import {
     writeLastChoirCode,
 } from '../storage/sessionStorage';
 import { resetAuthenticatedStores } from '../store/resetAuthenticatedStores';
+import { clearAllChatCaches } from '../storage/chatStorage';
+import { clearAllAdminBrandCaches } from '../storage/adminBrandStorage';
+import { clearPublicBrandCache } from '../storage/publicBrandStorage';
 import { registerTenantStoreScope } from '../store/tenantStoreScope';
 import { useChatStore } from '../store/admin/useChatStore';
 import { useTargetChoirStore, type PlatformViewMode } from '../store/platform';
@@ -48,6 +54,8 @@ import type {
 import type { Choir } from '../types/choir';
 import { AuthContext, type AuthContextValue } from './AuthContext';
 import { applyThemeToDocument } from '../utils/applyThemeToDocument';
+import { getAuthErrorMessage } from '../auth/authErrorMessages';
+import { applyNeutralThemeToDocument } from '../utils/documentBranding';
 
 interface AuthProviderProps {
     readonly children: ReactNode;
@@ -137,9 +145,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return resolvedMode;
     }, [setTokenState]);
 
+    const clearPrivateBrowserCaches = useCallback((): void => {
+        clearAllChatCaches();
+
+        const activeChoirCode = targetChoir?.code ?? user?.choirCode ?? choir?.code ?? '';
+
+        clearAllAdminBrandCaches();
+
+        if (activeChoirCode) {
+            clearPublicBrandCache(activeChoirCode);
+        }
+    }, [choir?.code, targetChoir?.code, user?.choirCode]);
+
     const clearSessionState = useCallback((redirectToLogin: boolean): void => {
+        clearPrivateBrowserCaches();
         clearAuthSession();
         resetAuthenticatedStores();
+        applyNeutralThemeToDocument();
         clearSelection();
         accessTokenRef.current = null;
         refreshTokenRef.current = null;
@@ -156,17 +178,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (redirectToLogin) {
             navigate('/auth/login', { replace: true });
         }
-    }, [clearSelection, navigate]);
+    }, [clearPrivateBrowserCaches, clearSelection, navigate]);
 
-    const expireSession = useCallback(async (): Promise<void> => {
+    const expireSession = useCallback(async (
+        reason?: SessionExpiryReason,
+    ): Promise<void> => {
+        const fallbackMessage = reason?.message?.trim() || 'Tu sesión expiró. Inicia sesión nuevamente.';
+        const resolvedMessage = getAuthErrorMessage(reason?.code, fallbackMessage);
         const isProtectedLocation = typeof window !== 'undefined' && (
             window.location.pathname.startsWith('/admin') ||
             window.location.pathname === '/auth/change-password'
         );
 
-        setErrorMessage('Tu sesión expiró. Inicia sesión nuevamente.');
-        clearSessionState(isProtectedLocation);
-    }, [clearSessionState]);
+        setErrorMessage(resolvedMessage);
+        clearSessionState(false);
+
+        if (isProtectedLocation) {
+            const searchParams = new URLSearchParams({
+                code: reason?.code ?? 'SESSION_REVOKED',
+                message: resolvedMessage,
+            });
+            navigate(`/auth/session-expired?${searchParams.toString()}`, { replace: true });
+        }
+    }, [clearSessionState, navigate]);
 
     const hydrateProfile = useCallback(async (
         authenticatedUser: AuthenticatedUser,
@@ -188,12 +222,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         passwordChangeRequired: boolean,
     ): void => {
         const chatStore = useChatStore.getState();
+        const targetChoirId = currentUser.role === 'SUPER_ADMIN'
+            ? useTargetChoirStore.getState().selectedChoir?.id ?? null
+            : currentUser.choirId;
 
-        if (
-            passwordChangeRequired ||
-            currentUser.role === 'SUPER_ADMIN' ||
-            !currentUser.choirId
-        ) {
+        if (passwordChangeRequired || !targetChoirId) {
             chatStore.disconnect();
             return;
         }
@@ -382,6 +415,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const logout = useCallback(async (): Promise<void> => {
         const currentRefreshToken = refreshTokenRef.current;
 
+        useChatStore.getState().disconnect();
+
         try {
             if (currentRefreshToken) {
                 await logoutUserSession({ refreshToken: currentRefreshToken });
@@ -404,7 +439,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         writeAccessMode('tenant');
         setAccessMode('tenant');
         setErrorMessage('');
-    }, [selectChoir, user?.role]);
+
+        const currentAccessToken = accessTokenRef.current;
+
+        if (currentAccessToken) {
+            connectTenantChat(currentAccessToken, user, requiresPasswordChange);
+        }
+    }, [connectTenantChat, requiresPasswordChange, selectChoir, user]);
 
     const returnToPlatform = useCallback((): void => {
         if (user?.role !== 'SUPER_ADMIN') {

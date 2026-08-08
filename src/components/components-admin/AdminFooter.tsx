@@ -13,16 +13,16 @@ import { useAuth } from '../../context/AuthContext';
 import { useAdminSettingsStore } from '../../store/admin/useSettingsStore';
 
 export const AdminFooter = () => {
-    const { user, loading } = useAuth();
+    const { user, loading, hasTenantContext } = useAuth();
     const { settings, fetchSettings } = useAdminSettingsStore();
 
     const isAuthenticated = Boolean(user);
 
     useEffect(() => {
-        if (!loading && isAuthenticated) {
+        if (!loading && isAuthenticated && hasTenantContext) {
             void fetchSettings();
         }
-    }, [loading, isAuthenticated, fetchSettings]);
+    }, [loading, isAuthenticated, hasTenantContext, fetchSettings]);
 
     return (
         <Box
@@ -61,76 +61,78 @@ export const AdminFooter = () => {
                 Creada por Rafael Cabanillas - 2022
             </Typography>
 
-            <Box
-                component="nav"
-                aria-label="Redes sociales administrativas"
-                sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 1,
-                }}
-            >
+            {isAuthenticated && hasTenantContext && settings && (
                 <Box
-                    component={RouterLink}
-                    to={settings?.socials.facebook || '/'}
-                    aria-label="Facebook"
+                    component="nav"
+                    aria-label="Redes sociales administrativas"
                     sx={{
-                        width: 36,
-                        height: 36,
-                        display: 'grid',
-                        placeItems: 'center',
-                        borderRadius: 1.5,
-                        color: 'var(--color-button-text)',
-                        backgroundColor: 'color-mix(in srgb, var(--color-button-text) 12%, transparent)',
-                        '&:hover': {
-                            backgroundColor: 'color-mix(in srgb, var(--color-button-text) 22%, transparent)',
-                        },
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1,
                     }}
                 >
-                    <FontAwesomeIcon icon={['fab', 'facebook']} />
-                </Box>
+                    <Box
+                        component={RouterLink}
+                        to={settings.socials.facebook || '/'}
+                        aria-label="Facebook"
+                        sx={{
+                            width: 36,
+                            height: 36,
+                            display: 'grid',
+                            placeItems: 'center',
+                            borderRadius: 1.5,
+                            color: 'var(--color-button-text)',
+                            backgroundColor: 'color-mix(in srgb, var(--color-button-text) 12%, transparent)',
+                            '&:hover': {
+                                backgroundColor: 'color-mix(in srgb, var(--color-button-text) 22%, transparent)',
+                            },
+                        }}
+                    >
+                        <FontAwesomeIcon icon={['fab', 'facebook']} />
+                    </Box>
 
-                <Box
-                    component={RouterLink}
-                    to={settings?.socials.instagram || '/'}
-                    aria-label="Instagram"
-                    sx={{
-                        width: 36,
-                        height: 36,
-                        display: 'grid',
-                        placeItems: 'center',
-                        borderRadius: 1.5,
-                        color: 'var(--color-button-text)',
-                        backgroundColor: 'color-mix(in srgb, var(--color-button-text) 12%, transparent)',
-                        '&:hover': {
-                            backgroundColor: 'color-mix(in srgb, var(--color-button-text) 22%, transparent)',
-                        },
-                    }}
-                >
-                    <FontAwesomeIcon icon={['fab', 'instagram']} />
-                </Box>
+                    <Box
+                        component={RouterLink}
+                        to={settings.socials.instagram || '/'}
+                        aria-label="Instagram"
+                        sx={{
+                            width: 36,
+                            height: 36,
+                            display: 'grid',
+                            placeItems: 'center',
+                            borderRadius: 1.5,
+                            color: 'var(--color-button-text)',
+                            backgroundColor: 'color-mix(in srgb, var(--color-button-text) 12%, transparent)',
+                            '&:hover': {
+                                backgroundColor: 'color-mix(in srgb, var(--color-button-text) 22%, transparent)',
+                            },
+                        }}
+                    >
+                        <FontAwesomeIcon icon={['fab', 'instagram']} />
+                    </Box>
 
-                <Box
-                    component={RouterLink}
-                    to={settings?.socials.youtube || '/'}
-                    aria-label="YouTube"
-                    sx={{
-                        width: 36,
-                        height: 36,
-                        display: 'grid',
-                        placeItems: 'center',
-                        borderRadius: 1.5,
-                        color: 'var(--color-button-text)',
-                        backgroundColor: 'color-mix(in srgb, var(--color-button-text) 12%, transparent)',
-                        '&:hover': {
-                            backgroundColor: 'color-mix(in srgb, var(--color-button-text) 22%, transparent)',
-                        },
-                    }}
-                >
-                    <FontAwesomeIcon icon={['fab', 'youtube']} />
+                    <Box
+                        component={RouterLink}
+                        to={settings.socials.youtube || '/'}
+                        aria-label="YouTube"
+                        sx={{
+                            width: 36,
+                            height: 36,
+                            display: 'grid',
+                            placeItems: 'center',
+                            borderRadius: 1.5,
+                            color: 'var(--color-button-text)',
+                            backgroundColor: 'color-mix(in srgb, var(--color-button-text) 12%, transparent)',
+                            '&:hover': {
+                                backgroundColor: 'color-mix(in srgb, var(--color-button-text) 22%, transparent)',
+                            },
+                        }}
+                    >
+                        <FontAwesomeIcon icon={['fab', 'youtube']} />
+                    </Box>
                 </Box>
-            </Box>
+            )}
         </Box>
     );
 };

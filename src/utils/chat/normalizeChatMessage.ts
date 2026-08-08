@@ -137,8 +137,12 @@ const normalizeReaction = (reaction: ChatReactionDto): MessageReaction => {
     };
 };
 
+const isMessageType = (value: string): value is MessageType => (
+    MESSAGE_TYPES.some((messageType) => messageType === value)
+);
+
 const normalizeMessageType = (value: string | undefined): MessageType => (
-    MESSAGE_TYPES.includes(value as MessageType) ? value as MessageType : 'TEXT'
+    value && isMessageType(value) ? value : 'TEXT'
 );
 
 const normalizeMediaAssetId = (

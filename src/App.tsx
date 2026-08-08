@@ -21,6 +21,7 @@ import { Songs } from './pages/public/Songs';
 import { AboutUs } from './pages/public/AboutUs';
 import { Login } from './pages/auth/Login';
 import { ChangePassword } from './pages/auth/ChangePassword';
+import { SessionExpired } from './pages/auth/SessionExpired';
 import { AdminEntryRoute } from './components/auth/AdminEntryRoute';
 import { ChoirList } from './pages/admin/choir/ChoirList';
 import { ChoirForm } from './pages/admin/choir/ChoirForm';
@@ -157,6 +158,7 @@ function App() {
             </Route>
 
             <Route path="/auth/login" element={<Login />} />
+            <Route path="/auth/session-expired" element={<SessionExpired />} />
             <Route
                 path="/auth/change-password"
                 element={(

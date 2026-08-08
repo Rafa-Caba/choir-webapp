@@ -94,7 +94,7 @@ const getReplyPreviewText = (message: ChatMessage | null): string => {
 };
 
 export const AdminChatGroup = () => {
-    const { user, token } = useAuth();
+    const { effectiveChoirId, user, token } = useAuth();
 
     const {
         messages,
@@ -132,12 +132,12 @@ export const AdminChatGroup = () => {
     const lastMessageIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (token && user) {
+        if (token && user && effectiveChoirId) {
             connect(token, user);
             void loadHistory();
             void fetchDirectory();
         }
-    }, [token, user, connect, loadHistory, fetchDirectory]);
+    }, [effectiveChoirId, token, user, connect, loadHistory, fetchDirectory]);
 
     useEffect(() => {
         if (messages.length === 0) {
