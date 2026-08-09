@@ -1,11 +1,11 @@
 // src/store/admin/useSongTypeStore.ts
 
 import { create } from 'zustand';
-import { getSongTypeById } from '../../services/admin/song';
 import {
     createSongType,
     deleteSongType,
     getAllSongTypes,
+    getSongTypeById,
     updateSongType,
 } from '../../services/admin/songType';
 import {
@@ -31,6 +31,7 @@ interface AdminSongTypeState {
         id: string,
         name: string,
         order: number,
+        parentId?: string | null,
         isParent?: boolean,
     ) => Promise<SongType>;
     readonly removeType: (id: string) => Promise<void>;
@@ -117,12 +118,17 @@ export const useSongTypeStore = create<AdminSongTypeState>((set) => ({
         }
     },
 
-    editType: async (id, name, order, isParent) => {
+    editType: async (id, name, order, parentId, isParent) => {
         const scope = beginTenantStoreRequest();
         set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            const type = await updateSongType(id, { name, order, isParent });
+            const type = await updateSongType(id, {
+                name,
+                order,
+                parentId: parentId || null,
+                isParent,
+            });
 
             if (isTenantStoreRequestCurrent(scope)) {
                 set((state) => ({

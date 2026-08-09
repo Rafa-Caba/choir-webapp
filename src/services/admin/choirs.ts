@@ -7,9 +7,9 @@ import type {
     PaginatedChoirResponse,
 } from '../../types/choir';
 
-export const getChoirs = async (page = 1): Promise<PaginatedChoirResponse> => {
+export const getChoirs = async (page = 1, limit = 10): Promise<PaginatedChoirResponse> => {
     const { data } = await api.get<PaginatedChoirResponse>('/choirs', {
-        params: { page },
+        params: { page, limit },
     });
     return data;
 };

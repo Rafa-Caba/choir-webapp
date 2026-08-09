@@ -11,12 +11,6 @@ import {
     CircularProgress,
     IconButton,
     Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     Tooltip,
     Typography,
 } from '@mui/material';
@@ -28,6 +22,10 @@ import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 
 import { useThemeStore } from '../../store/admin/useThemeStore';
+import { useClientPagination } from '../../hooks/useClientPagination';
+import { AdminCardGrid } from '../common/AdminCardGrid';
+import { AdminCardPagination } from '../common/AdminCardPagination';
+import { AdminListCard } from '../common/AdminListCard';
 import { applyThemeToDocument } from '../../utils/applyThemeToDocument';
 import type { Theme } from '../../types/theme';
 
@@ -204,6 +202,10 @@ export const AdminThemeList = () => {
         Swal.fire('Vista Previa', 'Se ha aplicado el tema temporalmente a esta sesión.', 'info');
     };
 
+    const {
+        page, pageSize, totalPages, totalItems, paginatedItems: paginatedThemes, setPage, setPageSize,
+    } = useClientPagination(themes);
+
     return (
         <Box
             component="section"
@@ -278,201 +280,71 @@ export const AdminThemeList = () => {
                         </Box>
                     </Box>
                 ) : (
-                    <TableContainer
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            overflow: 'auto',
-                            borderRadius: 1.5,
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            '&::-webkit-scrollbar': {
-                                display: 'none',
-                            },
-                        }}
-                    >
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    {['Nombre', 'Modo', 'Vista Previa', 'Acciones'].map((label) => (
-                                        <TableCell
-                                            key={label}
-                                            align={label === 'Acciones' ? 'right' : 'left'}
-                                            sx={{
-                                                backgroundColor:
-                                                    'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                                color: 'var(--color-text)',
-                                                fontWeight: 950,
-                                                borderBottom:
-                                                    '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                                whiteSpace: 'nowrap',
-                                            }}
-                                        >
-                                            {label}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            </TableHead>
-
-                            <TableBody>
-                                {themes.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={4}
-                                            sx={{
-                                                py: 5,
-                                                textAlign: 'center',
-                                                color: 'var(--color-secondary-text)',
-                                                fontWeight: 800,
-                                                borderBottom: 'none',
-                                            }}
-                                        >
-                                            No hay temas registrados.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    themes.map((theme) => (
-                                        <TableRow
-                                            key={theme.id}
-                                            hover
-                                            sx={{
-                                                '&:hover': {
-                                                    backgroundColor:
-                                                        'color-mix(in srgb, var(--color-primary) 8%, transparent)',
-                                                },
-                                            }}
-                                        >
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 950,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 220,
-                                                    overflowWrap: 'anywhere',
-                                                }}
-                                            >
-                                                {theme.name}
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 140,
-                                                }}
-                                            >
-                                                <Chip
-                                                    size="small"
-                                                    label={theme.isDark ? '🌙 Oscuro' : '☀️ Claro'}
-                                                    sx={{
-                                                        fontWeight: 950,
-                                                        color: theme.isDark ? '#ffffff' : '#111827',
-                                                        backgroundColor: theme.isDark ? '#111827' : '#facc15',
-                                                    }}
-                                                />
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 280,
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 0.75,
-                                                    }}
-                                                >
-                                                    <ColorPreview label="Fondo" color={theme.backgroundColor} />
-                                                    <ColorPreview label="Primario" color={theme.primaryColor} />
-                                                    <ColorPreview label="Acento" color={theme.accentColor} />
-                                                    <ColorPreview label="Tarjeta" color={theme.cardColor} />
-                                                    <ColorPreview label="Texto" color={theme.textColor} />
-                                                </Box>
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="right"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 190,
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        justifyContent: 'flex-end',
-                                                        gap: 0.75,
-                                                    }}
-                                                >
-                                                    <Tooltip title="Probar tema">
-                                                        <IconButton
-                                                            aria-label={`Probar ${theme.name}`}
-                                                            onClick={() => handleApplyPreview(theme)}
-                                                            sx={{
-                                                                color: 'var(--color-secondary-text)',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, var(--color-border) 18%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, var(--color-border) 28%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <VisibilityRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-
-                                                    <Tooltip title="Editar tema">
-                                                        <IconButton
-                                                            component={RouterLink}
-                                                            to={`/admin/themes/edit/${theme.id}`}
-                                                            aria-label={`Editar ${theme.name}`}
-                                                            sx={{
-                                                                color: 'var(--color-primary)',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, var(--color-primary) 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <EditRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-
-                                                    <Tooltip title="Eliminar tema">
-                                                        <IconButton
-                                                            aria-label={`Eliminar ${theme.name}`}
-                                                            onClick={() => handleDelete(theme.id)}
-                                                            sx={{
-                                                                color: '#dc2626',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, #dc2626 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, #dc2626 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <DeleteRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                        {themes.length === 0 ? (
+                            <Typography sx={{ py: 5, textAlign: 'center', color: 'var(--color-secondary-text)', fontWeight: 800 }}>
+                                No hay temas registrados.
+                            </Typography>
+                        ) : (
+                            <AdminCardGrid>
+                                {paginatedThemes.map((theme) => (
+                                    <AdminListCard
+                                        key={theme.id}
+                                        title={theme.name}
+                                        badges={(
+                                            <Chip
+                                                size="small"
+                                                label={theme.isDark ? '🌙 Oscuro' : '☀️ Claro'}
+                                                sx={{ fontWeight: 950, color: theme.isDark ? '#ffffff' : '#111827', backgroundColor: theme.isDark ? '#111827' : '#facc15' }}
+                                            />
+                                        )}
+                                        actions={(
+                                            <>
+                                                <Tooltip title="Probar tema">
+                                                    <IconButton aria-label={`Probar ${theme.name}`} onClick={() => handleApplyPreview(theme)} sx={{ color: 'var(--color-secondary-text)' }}>
+                                                        <VisibilityRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Editar tema">
+                                                    <IconButton component={RouterLink} to={`/admin/themes/edit/${theme.id}`} aria-label={`Editar ${theme.name}`} sx={{ color: 'var(--color-primary)' }}>
+                                                        <EditRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Eliminar tema">
+                                                    <IconButton aria-label={`Eliminar ${theme.name}`} onClick={() => handleDelete(theme.id)} sx={{ color: '#dc2626' }}>
+                                                        <DeleteRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </>
+                                        )}
+                                    >
+                                        <Typography sx={{ mb: 0.75, color: 'var(--color-secondary-text)', fontSize: '0.82rem', fontWeight: 800 }}>
+                                            Vista previa
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                            <ColorPreview label="Fondo" color={theme.backgroundColor} />
+                                            <ColorPreview label="Primario" color={theme.primaryColor} />
+                                            <ColorPreview label="Acento" color={theme.accentColor} />
+                                            <ColorPreview label="Tarjeta" color={theme.cardColor} />
+                                            <ColorPreview label="Texto" color={theme.textColor} />
+                                        </Box>
+                                    </AdminListCard>
+                                ))}
+                            </AdminCardGrid>
+                        )}
+                    </Box>
                 )}
+
+
+                <AdminCardPagination
+                    page={page}
+                    pageSize={pageSize}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                    disabled={loading}
+                />
             </Paper>
         </Box>
     );

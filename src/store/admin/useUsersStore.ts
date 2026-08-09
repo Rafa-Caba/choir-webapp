@@ -20,6 +20,7 @@ import {
     isTenantStoreRequestCurrent,
 } from '../tenantStoreScope';
 import type { User } from '../../types/auth';
+import type { PageSize } from '../../types/pagination';
 
 interface UsersState {
     readonly users: User[];
@@ -28,9 +29,10 @@ interface UsersState {
     readonly currentPage: number;
     readonly totalPages: number;
     readonly totalUsers: number;
+    readonly pageSize: PageSize;
     readonly loading: boolean;
     readonly mutationUserId: string | null;
-    readonly fetchUsers: (page?: number, filters?: UserListFilters) => Promise<void>;
+    readonly fetchUsers: (page?: number, pageSize?: PageSize, filters?: UserListFilters) => Promise<void>;
     readonly fetchUser: (id: string) => Promise<User | null>;
     readonly deleteUserById: (id: string) => Promise<void>;
     readonly saveUserAction: (
@@ -46,6 +48,7 @@ interface UsersState {
     readonly updateMyProfile: (formData: FormData) => Promise<User>;
     readonly updateMyTheme: (themeId: string) => Promise<User>;
     readonly setCurrentPage: (page: number) => void;
+    readonly setPageSize: (pageSize: PageSize) => void;
     readonly getUserById: (id: string) => User | undefined;
 }
 
@@ -62,15 +65,16 @@ export const useUsersStore = create<UsersState>((set, get) => ({
     currentPage: 1,
     totalPages: 1,
     totalUsers: 0,
+    pageSize: 10,
     loading: false,
     mutationUserId: null,
 
-    fetchUsers: async (page = 1, filters = {}) => {
+    fetchUsers: async (page = 1, pageSize = get().pageSize, filters = {}) => {
         const scope = beginTenantStoreRequest();
         set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            const response = await getAllUsers(page, 10, filters);
+            const response = await getAllUsers(page, pageSize, filters);
 
             if (isTenantStoreRequestCurrent(scope)) {
                 set({
@@ -79,6 +83,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
                     currentPage: response.currentPage,
                     totalPages: response.totalPages,
                     totalUsers: response.totalUsers,
+                    pageSize,
                 });
             }
         } finally {
@@ -218,5 +223,6 @@ export const useUsersStore = create<UsersState>((set, get) => ({
     updateMyProfile: (formData) => updateSelfProfile(formData),
     updateMyTheme: (themeId) => updateSelfTheme(themeId),
     setCurrentPage: (page) => set({ currentPage: page }),
+    setPageSize: (pageSize) => set({ pageSize, currentPage: 1 }),
     getUserById: (id) => get().users.find((user) => user.id === id),
 }));

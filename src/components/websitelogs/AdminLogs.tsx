@@ -6,6 +6,7 @@ import {
     Avatar,
     Box,
     Button,
+    Chip,
     CircularProgress,
     Dialog,
     DialogActions,
@@ -18,12 +19,6 @@ import {
     MenuItem,
     Paper,
     Select,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     TextField,
     Typography,
     useMediaQuery,
@@ -37,6 +32,9 @@ import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 import { useLogStore } from '../../store/admin/useLogStore';
+import { AdminCardGrid } from '../common/AdminCardGrid';
+import { AdminCardPagination } from '../common/AdminCardPagination';
+import { AdminListCard } from '../common/AdminListCard';
 import type { LogAction, LogFilters } from '../../types/log';
 import { capitalizeWord } from '../../utils/capitalize';
 
@@ -162,14 +160,17 @@ export const AdminLogs = () => {
         loading,
         currentPage,
         totalPages,
+        totalLogs,
+        pageSize,
         fetchLogs,
         setPage,
+        setPageSize,
         searchLogsText,
     } = useLogStore();
 
     useEffect(() => {
-        void fetchLogs(currentPage, filters);
-    }, [currentPage, filters, fetchLogs]);
+        void fetchLogs(currentPage, pageSize, filters);
+    }, [currentPage, pageSize, filters, fetchLogs]);
 
     useEffect(() => {
         const delay = window.setTimeout(() => {
@@ -179,17 +180,11 @@ export const AdminLogs = () => {
             }
 
             searchLogsText('');
-            void fetchLogs(1, filters);
+            void fetchLogs(1, pageSize, filters);
         }, 500);
 
         return () => window.clearTimeout(delay);
-    }, [search, filters, fetchLogs, searchLogsText]);
-
-    const handlePageChange = (newPage: number) => {
-        if (newPage >= 1 && newPage <= totalPages) {
-            setPage(newPage);
-        }
-    };
+    }, [search, filters, pageSize, fetchLogs, searchLogsText]);
 
     const handleCollectionChange = (event: SelectChangeEvent<string>) => {
         const nextValue = event.target.value;
@@ -249,7 +244,10 @@ export const AdminLogs = () => {
                 label="Buscar"
                 placeholder="Buscar por ID, username, colección..."
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                }}
                 fullWidth
                 slotProps={{
                     input: {
@@ -423,222 +421,65 @@ export const AdminLogs = () => {
                         </Box>
                     </Box>
                 ) : (
-                    <TableContainer
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            overflow: 'auto',
-                            borderRadius: 1.5,
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            '&::-webkit-scrollbar': {
-                                display: 'none',
-                            },
-                        }}
-                    >
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    {['Usuario', 'Colección', 'Acción', 'ID Referencia', 'Fecha'].map((label) => (
-                                        <TableCell
-                                            key={label}
-                                            align={label === 'Fecha' ? 'right' : 'left'}
-                                            sx={{
-                                                backgroundColor:
-                                                    'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                                color: 'var(--color-text)',
-                                                fontWeight: 950,
-                                                borderBottom:
-                                                    '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                                whiteSpace: 'nowrap',
-                                            }}
+                    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                        {visibleLogs.length === 0 ? (
+                            <Typography sx={{ py: 5, textAlign: 'center', color: 'var(--color-secondary-text)', fontWeight: 800 }}>
+                                No se encontraron registros con esos criterios.
+                            </Typography>
+                        ) : (
+                            <AdminCardGrid>
+                                {visibleLogs.map((log) => {
+                                    const userName = log.actor?.name || log.targetUser?.name || 'Sistema';
+                                    const username = log.actor?.username || log.targetUser?.username || '';
+
+                                    return (
+                                        <AdminListCard
+                                            key={log.id}
+                                            leading={(
+                                                <Avatar sx={{ width: 52, height: 52, bgcolor: 'var(--color-primary)', color: 'var(--color-button-text)', fontWeight: 950 }}>
+                                                    {userName.slice(0, 1).toUpperCase()}
+                                                </Avatar>
+                                            )}
+                                            title={userName}
+                                            subtitle={username ? `@${username}` : 'Acción del sistema'}
+                                            badges={(
+                                                <>
+                                                    <Chip size="small" label={log.collectionName} variant="outlined" />
+                                                    <Chip size="small" label={capitalizeWord(log.action)} color="primary" sx={{ fontWeight: 950 }} />
+                                                </>
+                                            )}
                                         >
-                                            {label}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            </TableHead>
-
-                            <TableBody>
-                                {visibleLogs.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={5}
-                                            sx={{
-                                                py: 5,
-                                                textAlign: 'center',
-                                                color: 'var(--color-secondary-text)',
-                                                fontWeight: 800,
-                                                borderBottom: 'none',
-                                            }}
-                                        >
-                                            No hay registros.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    visibleLogs.map((log) => {
-                                        const userName = log.actor?.name ?? 'Usuario no disponible';
-                                        const username = log.actor?.username ?? '';
-
-                                        return (
-                                            <TableRow
-                                                key={log.id}
-                                                hover
-                                                sx={{
-                                                    '&:hover': {
-                                                        backgroundColor:
-                                                            'color-mix(in srgb, var(--color-primary) 8%, transparent)',
-                                                    },
-                                                }}
-                                            >
-                                                <TableCell
-                                                    sx={{
-                                                        color: 'var(--color-text)',
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                        minWidth: 210,
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: 1,
-                                                        }}
-                                                    >
-                                                        <Avatar
-                                                            sx={{
-                                                                width: 36,
-                                                                height: 36,
-                                                                bgcolor: 'var(--color-primary)',
-                                                                color: 'var(--color-button-text)',
-                                                                fontWeight: 950,
-                                                            }}
-                                                        >
-                                                            {userName.slice(0, 1).toUpperCase()}
-                                                        </Avatar>
-
-                                                        <Box sx={{ minWidth: 0 }}>
-                                                            <Typography sx={{ fontWeight: 950, lineHeight: 1.1 }}>
-                                                                {userName}
-                                                            </Typography>
-
-                                                            {username && (
-                                                                <Typography
-                                                                    sx={{
-                                                                        color: 'var(--color-secondary-text)',
-                                                                        fontWeight: 750,
-                                                                        fontSize: '0.82rem',
-                                                                    }}
-                                                                >
-                                                                    @{username}
-                                                                </Typography>
-                                                            )}
-                                                        </Box>
-                                                    </Box>
-                                                </TableCell>
-
-                                                <TableCell
-                                                    sx={{
-                                                        color: 'var(--color-text)',
-                                                        fontWeight: 850,
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                        minWidth: 150,
-                                                    }}
-                                                >
-                                                    {log.collectionName}
-                                                </TableCell>
-
-                                                <TableCell
-                                                    sx={{
-                                                        color: 'var(--color-primary)',
-                                                        fontWeight: 950,
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                        minWidth: 120,
-                                                    }}
-                                                >
-                                                    {capitalizeWord(log.action)}
-                                                </TableCell>
-
-                                                <TableCell
-                                                    sx={{
-                                                        color: 'var(--color-secondary-text)',
-                                                        fontWeight: 800,
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                        minWidth: 240,
-                                                        maxWidth: 300,
-                                                        overflowWrap: 'anywhere',
-                                                    }}
-                                                >
+                                            <Box sx={{ display: 'grid', gap: 0.5 }}>
+                                                <Typography sx={{ color: 'var(--color-secondary-text)', fontSize: '0.8rem', fontWeight: 800 }}>
+                                                    Referencia
+                                                </Typography>
+                                                <Typography sx={{ fontWeight: 850, overflowWrap: 'anywhere' }}>
                                                     {log.referenceId || '-'}
-                                                </TableCell>
-
-                                                <TableCell
-                                                    align="right"
-                                                    sx={{
-                                                        color: 'var(--color-text)',
-                                                        fontWeight: 800,
-                                                        borderBottom:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                        minWidth: 210,
-                                                        whiteSpace: 'nowrap',
-                                                    }}
-                                                >
-                                                    {new Date(log.createdAt).toLocaleString('es-MX', {
-                                                        dateStyle: 'medium',
-                                                        timeStyle: 'short',
-                                                    })}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                                </Typography>
+                                                <Typography sx={{ mt: 0.5, color: 'var(--color-secondary-text)', fontSize: '0.8rem', fontWeight: 800 }}>
+                                                    Fecha
+                                                </Typography>
+                                                <Typography sx={{ fontWeight: 850 }}>
+                                                    {new Date(log.createdAt).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                </Typography>
+                                            </Box>
+                                        </AdminListCard>
+                                    );
+                                })}
+                            </AdminCardGrid>
+                        )}
+                    </Box>
                 )}
 
-                <Box
-                    sx={{
-                        flexShrink: 0,
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        gap: 1,
-                    }}
-                >
-                    <Button
-                        variant="outlined"
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1 || loading}
-                        sx={{
-                            borderRadius: 1.5,
-                            fontWeight: 950,
-                        }}
-                    >
-                        Anterior
-                    </Button>
-
-                    <Typography sx={{ fontWeight: 800 }}>
-                        Página {currentPage} de {totalPages}
-                    </Typography>
-
-                    <Button
-                        variant="outlined"
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages || loading}
-                        sx={{
-                            borderRadius: 1.5,
-                            fontWeight: 950,
-                        }}
-                    >
-                        Siguiente
-                    </Button>
-                </Box>
+                <AdminCardPagination
+                    page={currentPage}
+                    pageSize={pageSize}
+                    totalPages={totalPages}
+                    totalItems={totalLogs}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                    disabled={loading}
+                />
             </Paper>
 
             <Dialog

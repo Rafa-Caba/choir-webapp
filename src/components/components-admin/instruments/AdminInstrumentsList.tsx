@@ -13,12 +13,6 @@ import {
     IconButton,
     InputAdornment,
     Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     TextField,
     Tooltip,
     Typography,
@@ -32,6 +26,10 @@ import MusicNoteRoundedIcon from '@mui/icons-material/MusicNoteRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 import { useInstrumentsStore } from '../../../store/admin/useInstrumentsStore';
+import { useClientPagination } from '../../../hooks/useClientPagination';
+import { AdminCardGrid } from '../../common/AdminCardGrid';
+import { AdminCardPagination } from '../../common/AdminCardPagination';
+import { AdminListCard } from '../../common/AdminListCard';
 import type { Instrument } from '../../../types/instrument';
 
 interface SectionHeaderProps {
@@ -203,6 +201,10 @@ export const AdminInstrumentsList = () => {
         );
     });
 
+    const {
+        page, pageSize, totalPages, totalItems, paginatedItems: paginatedInstruments, setPage, setPageSize,
+    } = useClientPagination(filteredInstruments);
+
     return (
         <Box
             component="section"
@@ -266,7 +268,10 @@ export const AdminInstrumentsList = () => {
                     label="Buscar"
                     placeholder="Buscar por nombre, slug, categoría o iconKey..."
                     value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
+                    onChange={(event) => {
+                        setSearchTerm(event.target.value);
+                        setPage(1);
+                    }}
                     slotProps={{
                         input: {
                             startAdornment: (
@@ -295,243 +300,67 @@ export const AdminInstrumentsList = () => {
                         </Box>
                     </Box>
                 ) : (
-                    <TableContainer
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            overflow: 'auto',
-                            borderRadius: 1.5,
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            '&::-webkit-scrollbar': {
-                                display: 'none',
-                            },
-                        }}
-                    >
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    {[
-                                        'Ícono',
-                                        'Nombre',
-                                        'Slug',
-                                        'Categoría',
-                                        'Icon Key',
-                                        'Orden',
-                                        'Activo',
-                                        'Acciones',
-                                    ].map((label) => (
-                                        <TableCell
-                                            key={label}
-                                            align={label === 'Acciones' ? 'right' : 'left'}
-                                            sx={{
-                                                backgroundColor:
-                                                    'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                                color: 'var(--color-text)',
-                                                fontWeight: 950,
-                                                borderBottom:
-                                                    '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                                whiteSpace: 'nowrap',
-                                            }}
-                                        >
-                                            {label}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            </TableHead>
-
-                            <TableBody>
-                                {filteredInstruments.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={8}
-                                            sx={{
-                                                py: 5,
-                                                textAlign: 'center',
-                                                color: 'var(--color-secondary-text)',
-                                                fontWeight: 800,
-                                                borderBottom: 'none',
-                                            }}
-                                        >
-                                            No se encontraron instrumentos.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredInstruments.map((instrument) => (
-                                        <TableRow
-                                            key={instrument.id}
-                                            hover
-                                            sx={{
-                                                '&:hover': {
-                                                    backgroundColor:
-                                                        'color-mix(in srgb, var(--color-primary) 8%, transparent)',
-                                                },
-                                            }}
-                                        >
-                                            <TableCell
-                                                sx={{
-                                                    width: 92,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                <Avatar
-                                                    src={instrument.iconUrl || undefined}
-                                                    alt={instrument.name}
-                                                    variant="rounded"
-                                                    sx={{
-                                                        width: 50,
-                                                        height: 50,
-                                                        borderRadius: 1.5,
-                                                        bgcolor:
-                                                            'color-mix(in srgb, var(--color-card) 78%, var(--color-primary) 22%)',
-                                                        color: 'var(--color-primary)',
-                                                        border:
-                                                            '1px solid color-mix(in srgb, var(--color-border) 38%, transparent)',
-                                                        fontWeight: 950,
-                                                    }}
-                                                >
-                                                    <MusicNoteRoundedIcon />
-                                                </Avatar>
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 950,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 180,
-                                                }}
-                                            >
-                                                {instrument.name}
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-secondary-text)',
-                                                    fontWeight: 850,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 180,
-                                                }}
-                                            >
-                                                <Box component="code">{instrument.slug}</Box>
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 850,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 150,
-                                                }}
-                                            >
-                                                {instrument.category || '-'}
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-secondary-text)',
-                                                    fontWeight: 800,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 160,
-                                                }}
-                                            >
-                                                {instrument.iconKey}
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 900,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 90,
-                                                }}
-                                            >
-                                                {instrument.order}
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 110,
-                                                }}
-                                            >
-                                                <Chip
-                                                    size="small"
-                                                    label={instrument.isActive ? 'Sí' : 'No'}
-                                                    color={instrument.isActive ? 'success' : 'default'}
-                                                    sx={{
-                                                        fontWeight: 950,
-                                                    }}
-                                                />
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="right"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 140,
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        justifyContent: 'flex-end',
-                                                        gap: 0.75,
-                                                    }}
-                                                >
-                                                    <Tooltip title="Editar instrumento">
-                                                        <IconButton
-                                                            component={RouterLink}
-                                                            to={`/admin/instruments/edit/${instrument.id}`}
-                                                            aria-label={`Editar ${instrument.name}`}
-                                                            sx={{
-                                                                color: 'var(--color-primary)',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, var(--color-primary) 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <EditRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-
-                                                    <Tooltip title="Eliminar instrumento">
-                                                        <IconButton
-                                                            aria-label={`Eliminar ${instrument.name}`}
-                                                            onClick={() => handleDelete(instrument.id)}
-                                                            sx={{
-                                                                color: '#dc2626',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, #dc2626 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, #dc2626 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <DeleteRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                        {filteredInstruments.length === 0 ? (
+                            <Typography sx={{ py: 5, textAlign: 'center', color: 'var(--color-secondary-text)', fontWeight: 800 }}>
+                                No se encontraron instrumentos con ese criterio.
+                            </Typography>
+                        ) : (
+                            <AdminCardGrid>
+                                {paginatedInstruments.map((instrument) => (
+                                    <AdminListCard
+                                        key={instrument.id}
+                                        leading={(
+                                            <Avatar src={instrument.iconUrl || undefined} alt={instrument.name} variant="rounded" sx={{ width: 58, height: 58, borderRadius: 1.5, bgcolor: 'color-mix(in srgb, var(--color-card) 78%, var(--color-primary) 22%)', color: 'var(--color-primary)' }}>
+                                                <MusicNoteRoundedIcon />
+                                            </Avatar>
+                                        )}
+                                        title={instrument.name}
+                                        subtitle={<><Box component="code">{instrument.slug}</Box>{instrument.category ? ` · ${instrument.category}` : ''}</>}
+                                        badges={(
+                                            <>
+                                                <Chip size="small" label={instrument.isActive ? 'Activo' : 'Inactivo'} color={instrument.isActive ? 'success' : 'default'} sx={{ fontWeight: 950 }} />
+                                                <Chip size="small" label={`Orden ${instrument.order}`} variant="outlined" />
+                                            </>
+                                        )}
+                                        actions={(
+                                            <>
+                                                <Tooltip title="Editar instrumento">
+                                                    <IconButton component={RouterLink} to={`/admin/instruments/edit/${instrument.id}`} aria-label={`Editar ${instrument.name}`} sx={{ color: 'var(--color-primary)' }}>
+                                                        <EditRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Eliminar instrumento">
+                                                    <IconButton aria-label={`Eliminar ${instrument.name}`} onClick={() => handleDelete(instrument.id)} sx={{ color: '#dc2626' }}>
+                                                        <DeleteRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </>
+                                        )}
+                                    >
+                                        <Typography sx={{ color: 'var(--color-secondary-text)', fontSize: '0.82rem', fontWeight: 800 }}>
+                                            Icon key
+                                        </Typography>
+                                        <Typography component="code" sx={{ fontWeight: 850, overflowWrap: 'anywhere' }}>
+                                            {instrument.iconKey}
+                                        </Typography>
+                                    </AdminListCard>
+                                ))}
+                            </AdminCardGrid>
+                        )}
+                    </Box>
                 )}
+
+
+                <AdminCardPagination
+                    page={page}
+                    pageSize={pageSize}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                    disabled={loading}
+                />
             </Paper>
         </Box>
     );

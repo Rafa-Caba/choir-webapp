@@ -38,6 +38,16 @@ import {
     resolveAdminEntryRedirect,
 } from '../src/routing/adminNavigation.js';
 import { isPlatformTenantContextActive } from '../src/store/platform/platformContext.js';
+import { getCardPageWindow } from '../src/pagination/cardPagination.js';
+import { isPageSize } from '../src/types/pagination.js';
+import {
+    normalizeSongTypeApiResponse,
+    resolveSongTypeParentId,
+} from '../src/normalizers/songType.js';
+import {
+    shouldAutoLoadInstruments,
+    shouldShowNoInstrumentsState,
+} from '../src/instruments/instrumentLoadState.js';
 
 interface TestCase {
     readonly name: string;
@@ -65,6 +75,68 @@ const assertThrows = (callback: () => void): void => {
 };
 
 const testCases: TestCase[] = [
+    {
+        name: 'instrument auto-load runs once even when the loaded list is empty',
+        run: () => {
+            assertEqual(shouldAutoLoadInstruments(false), true);
+            assertEqual(shouldAutoLoadInstruments(true), false);
+            assertEqual(shouldShowNoInstrumentsState(true, false, false, 0), true);
+            assertEqual(shouldShowNoInstrumentsState(true, true, false, 0), false);
+            assertEqual(shouldShowNoInstrumentsState(true, false, true, 0), false);
+            assertEqual(shouldShowNoInstrumentsState(true, false, false, 1), false);
+        },
+    },
+    {
+        name: 'song type parent normalization accepts populated API references',
+        run: () => {
+            const normalized = normalizeSongTypeApiResponse({
+                _id: 'child-id',
+                id: 'child-id',
+                choirId: 'choir-id',
+                name: 'Entrada',
+                order: 1,
+                parentId: {
+                    _id: 'parent-id',
+                    name: 'Misa Ero Cras',
+                    order: 1,
+                },
+                isParent: false,
+            });
+
+            assertEqual(normalized.id, 'child-id');
+            assertEqual(normalized.parentId, 'parent-id');
+        },
+    },
+    {
+        name: 'song type parent normalization preserves string parent IDs',
+        run: () => {
+            assertEqual(resolveSongTypeParentId('parent-id'), 'parent-id');
+            assertEqual(resolveSongTypeParentId(null), undefined);
+        },
+    },
+    {
+        name: 'card pagination uses 10-item default windows and clamps page bounds',
+        run: () => {
+            const firstPage = getCardPageWindow(27, 1, 10);
+            const lastPage = getCardPageWindow(27, 9, 10);
+
+            assertEqual(firstPage.totalPages, 3);
+            assertEqual(firstPage.startIndex, 0);
+            assertEqual(firstPage.endIndex, 10);
+            assertEqual(lastPage.page, 3);
+            assertEqual(lastPage.startIndex, 20);
+            assertEqual(lastPage.endIndex, 27);
+        },
+    },
+    {
+        name: 'card page-size selector only accepts 10, 50, and 100',
+        run: () => {
+            assertEqual(isPageSize(10), true);
+            assertEqual(isPageSize(50), true);
+            assertEqual(isPageSize(100), true);
+            assertEqual(isPageSize(20), false);
+        },
+    },
     {
         name: 'SUPER_ADMIN receives platform and tenant administration permissions',
         run: () => {

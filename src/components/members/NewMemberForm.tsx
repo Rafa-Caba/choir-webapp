@@ -27,6 +27,10 @@ import { useMemberStore } from '../../store/admin/useMemberStore';
 import { useInstrumentsStore } from '../../store/admin/useInstrumentsStore';
 import { InstrumentPickerModal } from '../components-admin/instruments/InstrumentPickerModal';
 import type { Instrument } from '../../types/instrument';
+import {
+    shouldAutoLoadInstruments,
+    shouldShowNoInstrumentsState,
+} from '../../instruments/instrumentLoadState';
 
 export const NewMemberForm = () => {
     const navigate = useNavigate();
@@ -35,6 +39,8 @@ export const NewMemberForm = () => {
     const {
         instruments,
         loading: instrumentsLoading,
+        hasAttemptedLoad: hasAttemptedInstrumentsLoad,
+        loadFailed: instrumentsLoadFailed,
         fetchInstruments,
     } = useInstrumentsStore();
 
@@ -55,12 +61,12 @@ export const NewMemberForm = () => {
     const [selectedInstrumentId, setSelectedInstrumentId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!instruments || instruments.length === 0) {
+        if (shouldAutoLoadInstruments(hasAttemptedInstrumentsLoad)) {
             fetchInstruments().catch((error: Error) => {
                 console.error('Error fetching instruments:', error);
             });
         }
-    }, [fetchInstruments, instruments]);
+    }, [fetchInstruments, hasAttemptedInstrumentsLoad]);
 
     useEffect(() => {
         return () => {
@@ -195,6 +201,13 @@ export const NewMemberForm = () => {
         formData.instrumentLabel && formData.instrumentLabel.trim().length > 0
             ? formData.instrumentLabel
             : 'Ningún instrumento seleccionado';
+
+    const hasNoConfiguredInstruments = shouldShowNoInstrumentsState(
+        hasAttemptedInstrumentsLoad,
+        instrumentsLoadFailed,
+        instrumentsLoading,
+        instruments.length,
+    );
 
     return (
         <Box
@@ -448,6 +461,34 @@ export const NewMemberForm = () => {
                                     {selectedInstrumentLabel}
                                 </Box>
                             </Typography>
+
+                            {hasNoConfiguredInstruments && (
+                                <Alert severity="info">
+                                    No hay instrumentos configurados para este coro. Puedes escribir uno
+                                    manualmente en el campo Instrumento o crearlo desde la sección Instrumentos.
+                                </Alert>
+                            )}
+
+                            {instrumentsLoadFailed && !instrumentsLoading && (
+                                <Alert
+                                    severity="warning"
+                                    action={(
+                                        <Button
+                                            type="button"
+                                            size="small"
+                                            onClick={() => {
+                                                void fetchInstruments();
+                                            }}
+                                            disabled={loading}
+                                        >
+                                            Reintentar
+                                        </Button>
+                                    )}
+                                >
+                                    No fue posible cargar los instrumentos. Puedes reintentar o escribir uno
+                                    manualmente.
+                                </Alert>
+                            )}
 
                             <Paper
                                 elevation={0}

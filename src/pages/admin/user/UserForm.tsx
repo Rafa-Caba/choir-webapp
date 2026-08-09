@@ -30,6 +30,7 @@ import { useUsersStore } from '../../../store/admin/useUsersStore';
 import { useInstrumentsStore } from '../../../store/admin/useInstrumentsStore';
 import { InstrumentPickerModal } from '../../../components/components-admin/instruments/InstrumentPickerModal';
 import type { Instrument } from '../../../types/instrument';
+import { shouldAutoLoadInstruments } from '../../../instruments/instrumentLoadState';
 import type { SaveUserPayload, TenantUserRole } from '../../../services/admin/users';
 import {
     isValidTemporaryPassword,
@@ -95,6 +96,7 @@ export const UserForm = ({
     const {
         instruments,
         loading: instrumentsLoading,
+        hasAttemptedLoad: hasAttemptedInstrumentsLoad,
         fetchInstruments,
     } = useInstrumentsStore();
 
@@ -119,12 +121,12 @@ export const UserForm = ({
     const availableRoleOptions = useMemo(() => roleOptions, []);
 
     useEffect(() => {
-        if (!instruments || instruments.length === 0) {
+        if (shouldAutoLoadInstruments(hasAttemptedInstrumentsLoad)) {
             fetchInstruments().catch((error: Error) => {
                 console.error('Error fetching instruments for UserForm:', error);
             });
         }
-    }, [fetchInstruments, instruments]);
+    }, [fetchInstruments, hasAttemptedInstrumentsLoad]);
 
     useEffect(() => {
         const loadData = async () => {

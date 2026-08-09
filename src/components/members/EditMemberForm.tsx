@@ -25,6 +25,7 @@ import { useMemberStore } from '../../store/admin/useMemberStore';
 import { useInstrumentsStore } from '../../store/admin/useInstrumentsStore';
 import { InstrumentPickerModal } from '../components-admin/instruments/InstrumentPickerModal';
 import type { Instrument } from '../../types/instrument';
+import { shouldAutoLoadInstruments } from '../../instruments/instrumentLoadState';
 import type { CreateMemberPayload, Member } from '../../types/member';
 
 interface MemberInstrumentFields {
@@ -43,6 +44,7 @@ export const EditMemberForm = () => {
     const {
         instruments,
         loading: instrumentsLoading,
+        hasAttemptedLoad: hasAttemptedInstrumentsLoad,
         fetchInstruments,
     } = useInstrumentsStore();
 
@@ -101,12 +103,12 @@ export const EditMemberForm = () => {
     }, [id, getMember, navigate]);
 
     useEffect(() => {
-        if (!instruments || instruments.length === 0) {
+        if (shouldAutoLoadInstruments(hasAttemptedInstrumentsLoad)) {
             fetchInstruments().catch((error: Error) => {
                 console.error('Error fetching instruments:', error);
             });
         }
-    }, [fetchInstruments, instruments]);
+    }, [fetchInstruments, hasAttemptedInstrumentsLoad]);
 
     useEffect(() => {
         return () => {

@@ -24,6 +24,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useInstrumentsStore } from '../../store/admin/useInstrumentsStore';
 import { InstrumentPickerModal } from '../components-admin/instruments/InstrumentPickerModal';
 import type { Instrument } from '../../types/instrument';
+import { shouldAutoLoadInstruments } from '../../instruments/instrumentLoadState';
 
 interface UserSettingsFormState {
     name: string;
@@ -46,6 +47,7 @@ export const UserSettings = () => {
     const {
         instruments,
         loading: instrumentsLoading,
+        hasAttemptedLoad: hasAttemptedInstrumentsLoad,
         fetchInstruments,
     } = useInstrumentsStore();
 
@@ -83,12 +85,12 @@ export const UserSettings = () => {
     }, [user]);
 
     useEffect(() => {
-        if (hasTenantContext && (!instruments || instruments.length === 0)) {
+        if (hasTenantContext && shouldAutoLoadInstruments(hasAttemptedInstrumentsLoad)) {
             fetchInstruments().catch((error: Error) => {
                 console.error('Error fetching instruments for UserSettings:', error);
             });
         }
-    }, [fetchInstruments, hasTenantContext, instruments]);
+    }, [fetchInstruments, hasAttemptedInstrumentsLoad, hasTenantContext]);
 
     useEffect(() => {
         return () => {

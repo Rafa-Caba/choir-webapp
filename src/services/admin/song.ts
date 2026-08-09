@@ -1,7 +1,7 @@
 // src/services/admin/song.ts
 
 import api from '../../api/axios';
-import type { CreateSongPayload, Song, SongType } from '../../types/song';
+import type { CreateSongPayload, Song } from '../../types/song';
 
 type SongDataPayload = Omit<CreateSongPayload, 'file'>;
 
@@ -29,12 +29,6 @@ export const getSongById = async (id: string): Promise<Song> => {
     return data;
 };
 
-export const getSongTypeById = async (id: string): Promise<SongType> => {
-    const { data } = await api.get<SongType>(
-        `/song-types/${encodeURIComponent(id)}`,
-    );
-    return data;
-};
 
 export const createSong = async (payload: CreateSongPayload): Promise<Song> => {
     const { file, ...dataPayload } = payload;

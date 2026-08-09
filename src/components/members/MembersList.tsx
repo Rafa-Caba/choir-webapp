@@ -13,12 +13,6 @@ import {
     IconButton,
     InputAdornment,
     Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     TextField,
     Tooltip,
     Typography,
@@ -31,6 +25,9 @@ import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 import { useMemberStore } from '../../store/admin/useMemberStore';
+import { AdminCardGrid } from '../common/AdminCardGrid';
+import { AdminCardPagination } from '../common/AdminCardPagination';
+import { AdminListCard } from '../common/AdminListCard';
 import type { Member } from '../../types/member';
 
 interface SectionHeaderProps {
@@ -164,38 +161,28 @@ export const MembersList = () => {
         members,
         currentPage,
         totalPages,
+        totalMembers,
+        pageSize,
         loading,
         fetchMembers,
         removeMember,
         setCurrentPage,
+        setPageSize,
         searchMembersByText,
     } = useMemberStore();
 
     useEffect(() => {
-        void fetchMembers(currentPage);
-    }, [currentPage, fetchMembers]);
-
-    useEffect(() => {
         const delay = window.setTimeout(() => {
             if (searchText.trim() === '') {
-                if (members.length === 0 && !loading) {
-                    void fetchMembers(1);
-                }
-
+                void fetchMembers(currentPage, pageSize);
                 return;
             }
 
-            void searchMembersByText(searchText);
-        }, 500);
+            void searchMembersByText(searchText, currentPage, pageSize);
+        }, 350);
 
         return () => window.clearTimeout(delay);
-    }, [searchText, members.length, loading, fetchMembers, searchMembersByText]);
-
-    const handlePageChange = (newPage: number) => {
-        if (newPage >= 1 && newPage <= totalPages) {
-            setCurrentPage(newPage);
-        }
-    };
+    }, [searchText, currentPage, pageSize, fetchMembers, searchMembersByText]);
 
     const handleDelete = async (id: string) => {
         const result = await Swal.fire({
@@ -283,7 +270,10 @@ export const MembersList = () => {
                     label="Buscar"
                     placeholder="Buscar por nombre o instrumento..."
                     value={searchText}
-                    onChange={(event) => setSearchText(event.target.value)}
+                    onChange={(event) => {
+                        setSearchText(event.target.value);
+                        setCurrentPage(1);
+                    }}
                     slotProps={{
                         input: {
                             startAdornment: (
@@ -312,240 +302,56 @@ export const MembersList = () => {
                         </Box>
                     </Box>
                 ) : (
-                    <TableContainer
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            overflow: 'auto',
-                            borderRadius: 1.5,
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            '&::-webkit-scrollbar': {
-                                display: 'none',
-                            },
-                        }}
-                    >
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    {['Foto', 'Nombre', 'Instrumento', '¿Tiene voz?', 'Acciones'].map((label) => (
-                                        <TableCell
-                                            key={label}
-                                            align={label === 'Acciones' ? 'right' : 'left'}
-                                            sx={{
-                                                backgroundColor:
-                                                    'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                                color: 'var(--color-text)',
-                                                fontWeight: 950,
-                                                borderBottom:
-                                                    '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                                whiteSpace: 'nowrap',
-                                            }}
-                                        >
-                                            {label}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            </TableHead>
-
-                            <TableBody>
-                                {members.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={5}
-                                            sx={{
-                                                py: 5,
-                                                textAlign: 'center',
-                                                color: 'var(--color-secondary-text)',
-                                                fontWeight: 800,
-                                                borderBottom: 'none',
-                                            }}
-                                        >
-                                            No se encontraron miembros con ese criterio.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    members.map((member: Member) => (
-                                        <TableRow
-                                            key={member.id}
-                                            hover
-                                            sx={{
-                                                '&:hover': {
-                                                    backgroundColor:
-                                                        'color-mix(in srgb, var(--color-primary) 8%, transparent)',
-                                                },
-                                            }}
-                                        >
-                                            <TableCell
-                                                sx={{
-                                                    width: 86,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                <Avatar
-                                                    src={member.imageUrl || '/images/default-user.png'}
-                                                    alt={member.name}
-                                                    sx={{
-                                                        width: 50,
-                                                        height: 50,
-                                                        bgcolor: 'var(--color-primary)',
-                                                        color: 'var(--color-button-text)',
-                                                        fontWeight: 950,
-                                                        boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)',
-                                                    }}
-                                                >
-                                                    {member.name.slice(0, 1).toUpperCase()}
-                                                </Avatar>
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 950,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 190,
-                                                    overflowWrap: 'anywhere',
-                                                }}
-                                            >
-                                                {member.name}
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 850,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 170,
-                                                    overflowWrap: 'anywhere',
-                                                }}
-                                            >
-                                                {getMemberInstrumentLabel(member)}
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 120,
-                                                }}
-                                            >
-                                                <Chip
-                                                    size="small"
-                                                    label={member.voice ? 'Sí' : 'No'}
-                                                    color={member.voice ? 'success' : 'default'}
-                                                    sx={{
-                                                        fontWeight: 950,
-                                                    }}
-                                                />
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="right"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 140,
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        justifyContent: 'flex-end',
-                                                        gap: 0.75,
-                                                    }}
-                                                >
-                                                    <Tooltip title="Editar miembro">
-                                                        <IconButton
-                                                            component={RouterLink}
-                                                            to={`/admin/members/edit/${member.id}`}
-                                                            aria-label={`Editar ${member.name}`}
-                                                            sx={{
-                                                                color: 'var(--color-primary)',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, var(--color-primary) 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <EditRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-
-                                                    <Tooltip title="Eliminar miembro">
-                                                        <IconButton
-                                                            aria-label={`Eliminar ${member.name}`}
-                                                            onClick={() => handleDelete(member.id)}
-                                                            sx={{
-                                                                color: '#dc2626',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, #dc2626 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, #dc2626 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <DeleteRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                )}
-
-                {totalPages > 1 && (
-                    <Box
-                        sx={{
-                            flexShrink: 0,
-                            display: 'flex',
-                            flexDirection: {
-                                xs: 'column',
-                                sm: 'row',
-                            },
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            gap: 1,
-                        }}
-                    >
-                        <Button
-                            variant="outlined"
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            sx={{
-                                borderRadius: 1.5,
-                                fontWeight: 950,
-                            }}
-                        >
-                            Anterior
-                        </Button>
-
-                        <Typography sx={{ fontWeight: 900 }}>
-                            Página {currentPage} de {totalPages}
-                        </Typography>
-
-                        <Button
-                            variant="outlined"
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            sx={{
-                                borderRadius: 1.5,
-                                fontWeight: 950,
-                            }}
-                        >
-                            Siguiente
-                        </Button>
+                    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                        {members.length === 0 ? (
+                            <Typography sx={{ py: 5, textAlign: 'center', color: 'var(--color-secondary-text)', fontWeight: 800 }}>
+                                No se encontraron miembros con ese criterio.
+                            </Typography>
+                        ) : (
+                            <AdminCardGrid>
+                                {members.map((member: Member) => (
+                                    <AdminListCard
+                                        key={member.id}
+                                        leading={(
+                                            <Avatar src={member.imageUrl || '/images/default-user.png'} alt={member.name} sx={{ width: 64, height: 64, bgcolor: 'var(--color-primary)', fontWeight: 950 }}>
+                                                {member.name.slice(0, 1).toUpperCase()}
+                                            </Avatar>
+                                        )}
+                                        title={member.name}
+                                        subtitle={getMemberInstrumentLabel(member)}
+                                        badges={(
+                                            <Chip size="small" label={member.voice ? 'Con voz' : 'Sin voz'} color={member.voice ? 'success' : 'default'} sx={{ fontWeight: 950 }} />
+                                        )}
+                                        actions={(
+                                            <>
+                                                <Tooltip title="Editar miembro">
+                                                    <IconButton component={RouterLink} to={`/admin/members/edit/${member.id}`} aria-label={`Editar ${member.name}`} sx={{ color: 'var(--color-primary)' }}>
+                                                        <EditRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Eliminar miembro">
+                                                    <IconButton aria-label={`Eliminar ${member.name}`} onClick={() => handleDelete(member.id)} sx={{ color: '#dc2626' }}>
+                                                        <DeleteRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </>
+                                        )}
+                                    />
+                                ))}
+                            </AdminCardGrid>
+                        )}
                     </Box>
                 )}
+
+                <AdminCardPagination
+                    page={currentPage}
+                    pageSize={pageSize}
+                    totalPages={totalPages}
+                    totalItems={totalMembers}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={setPageSize}
+                    disabled={loading}
+                />
             </Paper>
         </Box>
     );

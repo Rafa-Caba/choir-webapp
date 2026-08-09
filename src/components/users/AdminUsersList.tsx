@@ -12,12 +12,6 @@ import {
     IconButton,
     InputAdornment,
     Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     TextField,
     Tooltip,
     Typography,
@@ -35,6 +29,9 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import { useAuth } from '../../context/AuthContext';
 import { useUsersStore } from '../../store/admin/useUsersStore';
 import type { User, UserRole } from '../../types/auth';
+import { AdminCardGrid } from '../common/AdminCardGrid';
+import { AdminCardPagination } from '../common/AdminCardPagination';
+import { AdminListCard } from '../common/AdminListCard';
 import { TemporaryPasswordDialog } from './TemporaryPasswordDialog';
 
 interface SectionHeaderProps {
@@ -130,6 +127,7 @@ export const AdminUsersList = ({
         currentPage,
         totalPages,
         totalUsers,
+        pageSize,
         loading,
         mutationUserId,
         fetchUsers,
@@ -137,11 +135,12 @@ export const AdminUsersList = ({
         changeUserActiveStatus,
         resetUserPasswordAction,
         setCurrentPage,
+        setPageSize,
     } = useUsersStore();
 
     useEffect(() => {
-        void fetchUsers(currentPage);
-    }, [currentPage, fetchUsers]);
+        void fetchUsers(currentPage, pageSize);
+    }, [currentPage, pageSize, fetchUsers]);
 
     const filteredUsers = useMemo(() => {
         const searchValue = searchTerm.trim().toLocaleLowerCase('es-MX');
@@ -283,7 +282,10 @@ export const AdminUsersList = ({
                     label="Buscar"
                     placeholder="Nombre, usuario o correo"
                     value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
+                    onChange={(event) => {
+                        setSearchTerm(event.target.value);
+                        setCurrentPage(1);
+                    }}
                     slotProps={{
                         input: {
                             startAdornment: (
@@ -299,93 +301,88 @@ export const AdminUsersList = ({
                     <Box sx={{ flex: 1, display: 'grid', placeItems: 'center', minHeight: 260 }}>
                         <CircularProgress />
                     </Box>
+                ) : filteredUsers.length === 0 ? (
+                    <Typography sx={{ py: 5, textAlign: 'center', color: 'var(--color-secondary-text)', fontWeight: 800 }}>
+                        No se encontraron usuarios con ese criterio.
+                    </Typography>
                 ) : (
-                    <TableContainer sx={{ flex: 1 }}>
-                        <Table stickyHeader size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Usuario</TableCell>
-                                    <TableCell>Rol</TableCell>
-                                    <TableCell>Estado</TableCell>
-                                    <TableCell>Contraseña</TableCell>
-                                    <TableCell>Último acceso</TableCell>
-                                    <TableCell align="right">Acciones</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {filteredUsers.map((userItem) => {
-                                    const role = getRolePresentation(userItem.role);
-                                    const busy = mutationUserId === userItem.id;
-                                    const isSelf = currentUser?.id === userItem.id;
+                    <AdminCardGrid>
+                        {filteredUsers.map((userItem) => {
+                            const role = getRolePresentation(userItem.role);
+                            const busy = mutationUserId === userItem.id;
+                            const isSelf = currentUser?.id === userItem.id;
 
-                                    return (
-                                        <TableRow key={userItem.id} hover>
-                                            <TableCell>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <Avatar src={userItem.imageUrl || undefined}>{userItem.name.slice(0, 1).toUpperCase()}</Avatar>
-                                                    <Box>
-                                                        <Typography sx={{ fontWeight: 950 }}>{userItem.name}</Typography>
-                                                        <Typography sx={{ color: 'var(--color-secondary-text)', fontSize: '0.82rem' }}>@{userItem.username} · {userItem.email}</Typography>
-                                                    </Box>
-                                                </Box>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Chip size="small" label={role.label} sx={{ fontWeight: 900, backgroundColor: role.backgroundColor, color: role.color }} />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Chip size="small" label={userItem.isActive ? 'Activo' : 'Suspendido'} color={userItem.isActive ? 'success' : 'default'} />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Chip size="small" label={userItem.mustChangePassword ? 'Cambio pendiente' : 'Configurada'} color={userItem.mustChangePassword ? 'warning' : 'success'} variant="outlined" />
-                                            </TableCell>
-                                            <TableCell>{formatDate(userItem.lastAccess)}</TableCell>
-                                            <TableCell align="right">
-                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                                                    <Tooltip title="Editar">
-                                                        <span>
-                                                            <IconButton component={RouterLink} to={`${basePath}/edit/${userItem.id}`} disabled={busy} aria-label={`Editar ${userItem.name}`}>
-                                                                <EditRoundedIcon />
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-                                                    <Tooltip title="Restablecer contraseña">
-                                                        <span>
-                                                            <IconButton disabled={busy} onClick={() => { void handleResetPassword(userItem); }} aria-label={`Restablecer contraseña de ${userItem.name}`}>
-                                                                <LockResetRoundedIcon />
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-                                                    <Tooltip title={userItem.isActive ? 'Suspender' : 'Reactivar'}>
-                                                        <span>
-                                                            <IconButton disabled={busy || isSelf} onClick={() => { void handleStatusChange(userItem); }} aria-label={`${userItem.isActive ? 'Suspender' : 'Reactivar'} ${userItem.name}`}>
-                                                                {userItem.isActive ? <PauseCircleOutlineRoundedIcon /> : <PlayCircleOutlineRoundedIcon />}
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-                                                    <Tooltip title="Eliminar">
-                                                        <span>
-                                                            <IconButton disabled={busy || isSelf} onClick={() => { void handleDelete(userItem); }} aria-label={`Eliminar ${userItem.name}`} sx={{ color: '#dc2626' }}>
-                                                                <DeleteRoundedIcon />
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                            return (
+                                <AdminListCard
+                                    key={userItem.id}
+                                    leading={(
+                                        <Avatar src={userItem.imageUrl || undefined} sx={{ width: 58, height: 58 }}>
+                                            {userItem.name.slice(0, 1).toUpperCase()}
+                                        </Avatar>
+                                    )}
+                                    title={userItem.name}
+                                    subtitle={<>@{userItem.username}<br />{userItem.email}</>}
+                                    badges={(
+                                        <>
+                                            <Chip size="small" label={role.label} sx={{ fontWeight: 900, backgroundColor: role.backgroundColor, color: role.color }} />
+                                            <Chip size="small" label={userItem.isActive ? 'Activo' : 'Suspendido'} color={userItem.isActive ? 'success' : 'default'} />
+                                            <Chip size="small" label={userItem.mustChangePassword ? 'Cambio pendiente' : 'Contraseña configurada'} color={userItem.mustChangePassword ? 'warning' : 'success'} variant="outlined" />
+                                        </>
+                                    )}
+                                    actions={(
+                                        <>
+                                            <Tooltip title="Editar">
+                                                <span>
+                                                    <IconButton component={RouterLink} to={`${basePath}/edit/${userItem.id}`} disabled={busy} aria-label={`Editar ${userItem.name}`}>
+                                                        <EditRoundedIcon />
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                            <Tooltip title="Restablecer contraseña">
+                                                <span>
+                                                    <IconButton disabled={busy} onClick={() => { void handleResetPassword(userItem); }} aria-label={`Restablecer contraseña de ${userItem.name}`}>
+                                                        <LockResetRoundedIcon />
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                            <Tooltip title={userItem.isActive ? 'Suspender' : 'Reactivar'}>
+                                                <span>
+                                                    <IconButton disabled={busy || isSelf} onClick={() => { void handleStatusChange(userItem); }} aria-label={`${userItem.isActive ? 'Suspender' : 'Reactivar'} ${userItem.name}`}>
+                                                        {userItem.isActive ? <PauseCircleOutlineRoundedIcon /> : <PlayCircleOutlineRoundedIcon />}
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                            <Tooltip title="Eliminar">
+                                                <span>
+                                                    <IconButton disabled={busy || isSelf} onClick={() => { void handleDelete(userItem); }} aria-label={`Eliminar ${userItem.name}`} sx={{ color: '#dc2626' }}>
+                                                        <DeleteRoundedIcon />
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                        </>
+                                    )}
+                                >
+                                    <Typography sx={{ color: 'var(--color-secondary-text)', fontSize: '0.84rem', fontWeight: 800 }}>
+                                        Último acceso
+                                    </Typography>
+                                    <Typography sx={{ fontWeight: 900 }}>
+                                        {formatDate(userItem.lastAccess)}
+                                    </Typography>
+                                </AdminListCard>
+                            );
+                        })}
+                    </AdminCardGrid>
                 )}
 
-                {totalPages > 1 && (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
-                        <Button variant="outlined" disabled={currentPage <= 1} onClick={() => setCurrentPage(currentPage - 1)}>Anterior</Button>
-                        <Typography sx={{ fontWeight: 900 }}>Página {currentPage} de {totalPages}</Typography>
-                        <Button variant="outlined" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Siguiente</Button>
-                    </Box>
-                )}
+                <AdminCardPagination
+                    page={currentPage}
+                    pageSize={pageSize}
+                    totalPages={totalPages}
+                    totalItems={totalUsers}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={setPageSize}
+                    disabled={loading}
+                />
             </Paper>
 
             <TemporaryPasswordDialog

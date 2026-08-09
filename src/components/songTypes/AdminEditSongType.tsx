@@ -151,7 +151,13 @@ export const AdminEditSongType = () => {
         setIsSaving(true);
 
         try {
-            await editType(id, trimmedName, finalOrder, formData.isParent);
+            await editType(
+                id,
+                trimmedName,
+                finalOrder,
+                formData.parentId || null,
+                formData.isParent,
+            );
 
             Swal.fire('Actualizado', 'El tipo de canto se actualizó con éxito.', 'success');
             navigate('/admin/song-types');

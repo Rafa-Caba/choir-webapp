@@ -32,7 +32,7 @@ const appendMemberFields = (
     }
 };
 
-const paginateMembers = (
+export const paginateMembers = (
     members: readonly Member[],
     page: number,
     limit: number,
@@ -85,6 +85,15 @@ export const searchMembers = async (query: string): Promise<Member[]> => {
 
         return searchableText.includes(normalizedQuery);
     });
+};
+
+export const searchPaginatedMembers = async (
+    query: string,
+    page = 1,
+    limit = DEFAULT_PAGE_SIZE,
+): Promise<PaginatedMemberResponse> => {
+    const members = await searchMembers(query);
+    return paginateMembers(members, page, limit);
 };
 
 export const getMemberById = async (id: string): Promise<Member> => {

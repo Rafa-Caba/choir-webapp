@@ -23,6 +23,19 @@ const forbiddenFiles = [
     'README.chat.md',
     'ROADMAP.chat.md',
 ];
+
+const responsiveCardListFiles = [
+    'src/components/announcements/AdminAnouncements.tsx',
+    'src/components/blog/AdminBlogPostList.tsx',
+    'src/components/choirs/AdminChoirList.tsx',
+    'src/components/components-admin/instruments/AdminInstrumentsList.tsx',
+    'src/components/members/MembersList.tsx',
+    'src/components/songTypes/AdminSongTypeList.tsx',
+    'src/components/themes/AdminThemeList.tsx',
+    'src/components/users/AdminUsersList.tsx',
+    'src/components/websitelogs/AdminLogs.tsx',
+];
+
 const forbiddenPatterns = [
     { label: 'legacy choirKey selector', pattern: /\bchoirKey\b/u },
     { label: 'legacy withChoirKey helper', pattern: /\bwithChoirKey\b/u },
@@ -89,6 +102,40 @@ if (!platformChoirListContents.includes('buildPlatformChoirUsersRoute')) {
 
 if (/navigate\(\s*['"]\/admin\/users/u.test(platformChoirListContents)) {
     failures.push('AdminChoirList.tsx: platform user management must not navigate directly to /admin/users');
+}
+
+
+for (const cardListFile of responsiveCardListFiles) {
+    const contents = readFileSync(join(root, cardListFile), 'utf8');
+
+    if (!contents.includes('AdminCardGrid')) {
+        failures.push(`${cardListFile}: administrative lists must use the responsive card grid`);
+    }
+
+    if (!contents.includes('AdminCardPagination')) {
+        failures.push(`${cardListFile}: administrative card lists must expose pagination controls`);
+    }
+
+    if (/<Table(?:Container|Head|Body|Row|Cell)?\b/u.test(contents)) {
+        failures.push(`${cardListFile}: administrative lists must not render MUI tables`);
+    }
+}
+
+const cardGridContents = readFileSync(join(root, 'src/components/common/AdminCardGrid.tsx'), 'utf8');
+for (const expectedColumnRule of [
+    "xs: 'minmax(0, 1fr)'",
+    "sm: 'repeat(2, minmax(0, 1fr))'",
+    "md: 'repeat(3, minmax(0, 1fr))'",
+    "xl: 'repeat(4, minmax(0, 1fr))'",
+]) {
+    if (!cardGridContents.includes(expectedColumnRule)) {
+        failures.push(`AdminCardGrid.tsx: missing responsive rule ${expectedColumnRule}`);
+    }
+}
+
+const paginationTypeContents = readFileSync(join(root, 'src/types/pagination.ts'), 'utf8');
+if (!paginationTypeContents.includes('[10, 50, 100]')) {
+    failures.push('src/types/pagination.ts: page-size options must remain 10, 50, and 100');
 }
 
 const targetStorePath = join(root, 'src/store/platform/useTargetChoirStore.ts');

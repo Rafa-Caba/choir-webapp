@@ -5,6 +5,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
 import {
+    Avatar,
     Box,
     Breadcrumbs,
     Button,
@@ -13,12 +14,6 @@ import {
     IconButton,
     InputAdornment,
     Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     TextField,
     Tooltip,
     Typography,
@@ -35,6 +30,10 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 import type { SongType } from '../../types';
 import { useSongTypeStore } from '../../store/admin/useSongTypeStore';
+import { useClientPagination } from '../../hooks/useClientPagination';
+import { AdminCardGrid } from '../common/AdminCardGrid';
+import { AdminCardPagination } from '../common/AdminCardPagination';
+import { AdminListCard } from '../common/AdminListCard';
 import { capitalizeWord } from '../../utils';
 
 interface SectionHeaderProps {
@@ -193,14 +192,20 @@ export const AdminSongTypeList = () => {
         return !typeItem.parentId;
     });
 
+    const {
+        page, pageSize, totalPages, totalItems, paginatedItems: paginatedTypes, setPage, setPageSize,
+    } = useClientPagination(filteredTypes);
+
     const handleEnterFolder = (typeItem: SongType) => {
         setCurrentParent(typeItem);
         setSearch('');
+        setPage(1);
     };
 
     const handleGoBack = () => {
         setCurrentParent(null);
         setSearch('');
+        setPage(1);
     };
 
     return (
@@ -358,7 +363,10 @@ export const AdminSongTypeList = () => {
                     <TextField
                         type="text"
                         value={search}
-                        onChange={(event) => setSearch(event.target.value)}
+                        onChange={(event) => {
+                            setSearch(event.target.value);
+                            setPage(1);
+                        }}
                         placeholder="Buscar globalmente..."
                         label="Buscar"
                         slotProps={{
@@ -390,256 +398,79 @@ export const AdminSongTypeList = () => {
                         </Box>
                     </Box>
                 ) : (
-                    <TableContainer
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            overflow: 'auto',
-                            borderRadius: 1.5,
-                        }}
-                    >
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell
-                                        sx={{
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Nombre
-                                    </TableCell>
-
-                                    <TableCell
-                                        align="center"
-                                        sx={{
-                                            width: 110,
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Orden
-                                    </TableCell>
-
-                                    <TableCell
-                                        align="center"
-                                        sx={{
-                                            width: 140,
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Tipo
-                                    </TableCell>
-
-                                    <TableCell
-                                        align="right"
-                                        sx={{
-                                            width: 180,
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Acciones
-                                    </TableCell>
-                                </TableRow>
-                            </TableHead>
-
-                            <TableBody>
-                                {filteredTypes.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={4}
-                                            sx={{
-                                                py: 5,
-                                                textAlign: 'center',
-                                                color: 'var(--color-secondary-text)',
-                                                fontWeight: 800,
-                                                borderBottom: 'none',
-                                            }}
-                                        >
-                                            La carpeta está vacía o no hay resultados.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredTypes.map((typeItem) => (
-                                        <TableRow
-                                            key={typeItem.id}
-                                            hover
-                                            sx={{
-                                                '&:hover': {
-                                                    backgroundColor:
-                                                        'color-mix(in srgb, var(--color-primary) 8%, transparent)',
-                                                },
-                                            }}
-                                        >
-                                            <TableCell
+                    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                        {filteredTypes.length === 0 ? (
+                            <Typography sx={{ py: 5, textAlign: 'center', color: 'var(--color-secondary-text)', fontWeight: 800 }}>
+                                No se encontraron tipos de canto con ese criterio.
+                            </Typography>
+                        ) : (
+                            <AdminCardGrid>
+                                {paginatedTypes.map((typeItem) => (
+                                    <AdminListCard
+                                        key={typeItem.id}
+                                        leading={(
+                                            <Avatar
                                                 sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 900,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
+                                                    width: 58,
+                                                    height: 58,
+                                                    bgcolor: typeItem.isParent ? '#facc15' : 'color-mix(in srgb, var(--color-card) 76%, var(--color-border) 24%)',
+                                                    color: typeItem.isParent ? '#1f2937' : 'var(--color-primary)',
                                                 }}
                                             >
-                                                {typeItem.isParent ? (
-                                                    <Button
-                                                        type="button"
-                                                        onClick={() => handleEnterFolder(typeItem)}
-                                                        startIcon={<FolderRoundedIcon sx={{ color: '#facc15' }} />}
-                                                        sx={{
-                                                            justifyContent: 'flex-start',
-                                                            color: 'var(--color-primary)',
-                                                            fontWeight: 950,
-                                                            textAlign: 'left',
-                                                            px: 0.5,
-                                                            '&:hover': {
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                                                            },
-                                                        }}
-                                                    >
-                                                        {capitalizeWord(typeItem.name)}
+                                                {typeItem.isParent ? <FolderRoundedIcon /> : <MusicNoteRoundedIcon />}
+                                            </Avatar>
+                                        )}
+                                        title={typeItem.isParent ? (
+                                            <Button
+                                                type="button"
+                                                onClick={() => handleEnterFolder(typeItem)}
+                                                sx={{ p: 0, minWidth: 0, justifyContent: 'flex-start', textTransform: 'none', color: 'var(--color-text)', fontWeight: 950, fontSize: 'inherit' }}
+                                            >
+                                                {capitalizeWord(typeItem.name)}
+                                            </Button>
+                                        ) : capitalizeWord(typeItem.name)}
+                                        badges={(
+                                            <>
+                                                <Chip size="small" icon={typeItem.isParent ? <FolderRoundedIcon /> : <MusicNoteRoundedIcon />} label={typeItem.isParent ? 'Carpeta' : 'Categoría'} sx={{ fontWeight: 950 }} />
+                                                <Chip size="small" label={`Orden ${typeItem.order}`} variant="outlined" />
+                                            </>
+                                        )}
+                                        actions={(
+                                            <>
+                                                {typeItem.isParent && (
+                                                    <Button size="small" variant="outlined" onClick={() => handleEnterFolder(typeItem)} sx={{ borderRadius: 1.5, fontWeight: 950 }}>
+                                                        Abrir
                                                     </Button>
-                                                ) : (
-                                                    <Box
-                                                        sx={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: 1,
-                                                        }}
-                                                    >
-                                                        <MusicNoteRoundedIcon
-                                                            sx={{
-                                                                color: 'var(--color-secondary-text)',
-                                                                fontSize: 20,
-                                                            }}
-                                                        />
-                                                        {capitalizeWord(typeItem.name)}
-                                                    </Box>
                                                 )}
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="center"
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 800,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                {typeItem.order}
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="center"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                <Chip
-                                                    size="small"
-                                                    icon={
-                                                        typeItem.isParent ? (
-                                                            <FolderRoundedIcon />
-                                                        ) : (
-                                                            <MusicNoteRoundedIcon />
-                                                        )
-                                                    }
-                                                    label={typeItem.isParent ? 'Carpeta' : 'Categoría'}
-                                                    sx={{
-                                                        color: typeItem.isParent
-                                                            ? '#1f2937'
-                                                            : 'var(--color-text)',
-                                                        backgroundColor: typeItem.isParent
-                                                            ? '#facc15'
-                                                            : 'color-mix(in srgb, var(--color-card) 76%, var(--color-border) 24%)',
-                                                        fontWeight: 950,
-                                                        '& .MuiChip-icon': {
-                                                            color: typeItem.isParent
-                                                                ? '#1f2937'
-                                                                : 'var(--color-secondary-text)',
-                                                        },
-                                                    }}
-                                                />
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="right"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        justifyContent: 'flex-end',
-                                                        gap: 0.75,
-                                                    }}
-                                                >
-                                                    <Tooltip title="Editar tipo">
-                                                        <IconButton
-                                                            component={RouterLink}
-                                                            to={`/admin/song-types/edit/${typeItem.id}`}
-                                                            aria-label={`Editar ${typeItem.name}`}
-                                                            sx={{
-                                                                color: 'var(--color-primary)',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, var(--color-primary) 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <EditRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-
-                                                    <Tooltip title="Eliminar tipo">
-                                                        <IconButton
-                                                            aria-label={`Eliminar ${typeItem.name}`}
-                                                            onClick={() => handleDelete(typeItem.id)}
-                                                            sx={{
-                                                                color: '#dc2626',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, #dc2626 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, #dc2626 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <DeleteRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                                <Tooltip title="Editar tipo">
+                                                    <IconButton component={RouterLink} to={`/admin/song-types/edit/${typeItem.id}`} aria-label={`Editar ${typeItem.name}`} sx={{ color: 'var(--color-primary)' }}>
+                                                        <EditRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Eliminar tipo">
+                                                    <IconButton aria-label={`Eliminar ${typeItem.name}`} onClick={() => handleDelete(typeItem.id)} sx={{ color: '#dc2626' }}>
+                                                        <DeleteRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </>
+                                        )}
+                                    />
+                                ))}
+                            </AdminCardGrid>
+                        )}
+                    </Box>
                 )}
+
+
+                <AdminCardPagination
+                    page={page}
+                    pageSize={pageSize}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                    disabled={loading}
+                />
             </Paper>
         </Box>
     );

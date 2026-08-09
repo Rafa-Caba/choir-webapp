@@ -6,7 +6,7 @@ import {
     deleteMember,
     getMemberById,
     getPaginatedMembers,
-    searchMembers,
+    searchPaginatedMembers,
     updateMember,
 } from '../../services/admin/member';
 import {
@@ -14,6 +14,7 @@ import {
     isTenantStoreRequestCurrent,
 } from '../tenantStoreScope';
 import type { CreateMemberPayload, Member } from '../../types/member';
+import type { PageSize } from '../../types/pagination';
 
 interface AdminMemberState {
     readonly members: Member[];
@@ -21,11 +22,14 @@ interface AdminMemberState {
     readonly activeChoirId: string | null;
     readonly currentPage: number;
     readonly totalPages: number;
+    readonly totalMembers: number;
+    readonly pageSize: PageSize;
     readonly loading: boolean;
     readonly isSearching: boolean;
-    readonly fetchMembers: (page?: number) => Promise<void>;
-    readonly searchMembersByText: (query: string) => Promise<void>;
+    readonly fetchMembers: (page?: number, pageSize?: PageSize) => Promise<void>;
+    readonly searchMembersByText: (query: string, page?: number, pageSize?: PageSize) => Promise<void>;
     readonly setCurrentPage: (page: number) => void;
+    readonly setPageSize: (pageSize: PageSize) => void;
     readonly getMember: (id: string) => Promise<Member | null>;
     readonly addMember: (payload: CreateMemberPayload) => Promise<Member>;
     readonly editMember: (
@@ -41,12 +45,15 @@ export const useMemberStore = create<AdminMemberState>((set, get) => ({
     activeChoirId: null,
     currentPage: 1,
     totalPages: 1,
+    totalMembers: 0,
+    pageSize: 10,
     loading: false,
     isSearching: false,
 
     setCurrentPage: (page) => set({ currentPage: page }),
+    setPageSize: (pageSize) => set({ pageSize, currentPage: 1 }),
 
-    fetchMembers: async (page = 1) => {
+    fetchMembers: async (page = 1, pageSize = get().pageSize) => {
         const scope = beginTenantStoreRequest();
         set({
             loading: true,
@@ -55,13 +62,15 @@ export const useMemberStore = create<AdminMemberState>((set, get) => ({
         });
 
         try {
-            const response = await getPaginatedMembers(page);
+            const response = await getPaginatedMembers(page, pageSize);
 
             if (isTenantStoreRequestCurrent(scope)) {
                 set({
                     members: response.members,
                     currentPage: response.currentPage,
                     totalPages: response.totalPages,
+                    totalMembers: response.totalMembers,
+                    pageSize,
                 });
             }
         } finally {
@@ -71,9 +80,9 @@ export const useMemberStore = create<AdminMemberState>((set, get) => ({
         }
     },
 
-    searchMembersByText: async (query) => {
+    searchMembersByText: async (query, page = 1, pageSize = get().pageSize) => {
         if (!query.trim()) {
-            await get().fetchMembers(1);
+            await get().fetchMembers(page, pageSize);
             return;
         }
 
@@ -85,10 +94,16 @@ export const useMemberStore = create<AdminMemberState>((set, get) => ({
         });
 
         try {
-            const members = await searchMembers(query);
+            const response = await searchPaginatedMembers(query, page, pageSize);
 
             if (isTenantStoreRequestCurrent(scope)) {
-                set({ members, totalPages: 1, currentPage: 1 });
+                set({
+                    members: response.members,
+                    totalPages: response.totalPages,
+                    totalMembers: response.totalMembers,
+                    currentPage: response.currentPage,
+                    pageSize,
+                });
             }
         } finally {
             if (isTenantStoreRequestCurrent(scope)) {

@@ -13,12 +13,6 @@ import {
     IconButton,
     InputAdornment,
     Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     TextField,
     Tooltip,
     Typography,
@@ -33,6 +27,10 @@ import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 import { useBlogStore } from '../../store/admin/useBlogStore';
+import { useClientPagination } from '../../hooks/useClientPagination';
+import { AdminCardGrid } from '../common/AdminCardGrid';
+import { AdminCardPagination } from '../common/AdminCardPagination';
+import { AdminListCard } from '../common/AdminListCard';
 
 interface SectionHeaderProps {
     title: string;
@@ -162,6 +160,16 @@ export const AdminBlogPostList = () => {
         return titleMatches || authorMatches;
     });
 
+    const {
+        page,
+        pageSize,
+        totalPages,
+        totalItems,
+        paginatedItems: paginatedPosts,
+        setPage,
+        setPageSize,
+    } = useClientPagination(filteredPosts);
+
     const handleDelete = async (id: string) => {
         const result = await Swal.fire({
             title: '¿Estás seguro?',
@@ -244,7 +252,10 @@ export const AdminBlogPostList = () => {
                     label="Buscar"
                     placeholder="Buscar por título o autor"
                     value={search}
-                    onChange={(event) => setSearch(event.target.value)}
+                    onChange={(event) => {
+                        setSearch(event.target.value);
+                        setPage(1);
+                    }}
                     slotProps={{
                         input: {
                             startAdornment: (
@@ -273,310 +284,66 @@ export const AdminBlogPostList = () => {
                         </Box>
                     </Box>
                 ) : (
-                    <TableContainer
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            overflow: 'auto',
-                            borderRadius: 1.5,
-                        }}
-                    >
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell
-                                        sx={{
-                                            width: 110,
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Portada
-                                    </TableCell>
-
-                                    <TableCell
-                                        sx={{
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Título
-                                    </TableCell>
-
-                                    <TableCell
-                                        sx={{
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Autor
-                                    </TableCell>
-
-                                    <TableCell
-                                        align="center"
-                                        sx={{
-                                            width: 90,
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Likes
-                                    </TableCell>
-
-                                    <TableCell
-                                        align="center"
-                                        sx={{
-                                            width: 120,
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Comentarios
-                                    </TableCell>
-
-                                    <TableCell
-                                        align="center"
-                                        sx={{
-                                            width: 120,
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Estado
-                                    </TableCell>
-
-                                    <TableCell
-                                        align="right"
-                                        sx={{
-                                            width: 150,
-                                            backgroundColor:
-                                                'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                            color: 'var(--color-text)',
-                                            fontWeight: 950,
-                                            borderBottom:
-                                                '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                        }}
-                                    >
-                                        Acciones
-                                    </TableCell>
-                                </TableRow>
-                            </TableHead>
-
-                            <TableBody>
-                                {filteredPosts.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={7}
-                                            sx={{
-                                                py: 5,
-                                                textAlign: 'center',
-                                                color: 'var(--color-secondary-text)',
-                                                fontWeight: 800,
-                                                borderBottom: 'none',
-                                            }}
-                                        >
-                                            No se encontraron posts con ese criterio.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredPosts.map((post) => (
-                                        <TableRow
-                                            key={post.id}
-                                            hover
-                                            sx={{
-                                                '&:hover': {
-                                                    backgroundColor:
-                                                        'color-mix(in srgb, var(--color-primary) 8%, transparent)',
-                                                },
-                                            }}
-                                        >
-                                            <TableCell
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
+                    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: { xs: 0, md: 0.5 } }}>
+                        {filteredPosts.length === 0 ? (
+                            <Typography sx={{ py: 5, textAlign: 'center', color: 'var(--color-secondary-text)', fontWeight: 800 }}>
+                                No se encontraron posts con ese criterio.
+                            </Typography>
+                        ) : (
+                            <AdminCardGrid>
+                                {paginatedPosts.map((post) => (
+                                    <AdminListCard
+                                        key={post.id}
+                                        leading={(
+                                            <Avatar
+                                                src={post.imageUrl || '/images/default-image.png'}
+                                                alt={post.title}
+                                                variant="rounded"
+                                                sx={{ width: 70, height: 70, borderRadius: 1.5, bgcolor: 'var(--color-primary)' }}
                                             >
-                                                <Avatar
-                                                    variant="rounded"
-                                                    src={post.imageUrl || '/images/default-post.jpg'}
-                                                    alt={post.title}
-                                                    sx={{
-                                                        width: 78,
-                                                        height: 54,
-                                                        borderRadius: 1.5,
-                                                        bgcolor: 'var(--color-primary)',
-                                                        boxShadow:
-                                                            '0 8px 20px rgba(15, 23, 42, 0.12)',
-                                                    }}
-                                                />
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 950,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    maxWidth: 280,
-                                                    overflowWrap: 'anywhere',
-                                                }}
-                                            >
-                                                {post.title}
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 800,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                {post.author?.name || 'Desconocido'}
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="center"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: 0.4,
-                                                        color: 'var(--color-secondary-text)',
-                                                        fontWeight: 900,
-                                                    }}
-                                                >
-                                                    <FavoriteRoundedIcon sx={{ fontSize: 18 }} />
-                                                    {post.likes}
-                                                </Box>
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="center"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: 0.4,
-                                                        color: 'var(--color-secondary-text)',
-                                                        fontWeight: 900,
-                                                    }}
-                                                >
-                                                    <ChatBubbleOutlineRoundedIcon sx={{ fontSize: 18 }} />
-                                                    {post.comments?.length || 0}
-                                                </Box>
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="center"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                <Chip
-                                                    size="small"
-                                                    label={post.isPublic ? 'Publicado' : 'Oculto'}
-                                                    color={post.isPublic ? 'success' : 'default'}
-                                                    sx={{
-                                                        fontWeight: 950,
-                                                    }}
-                                                />
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="right"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        justifyContent: 'flex-end',
-                                                        gap: 0.75,
-                                                    }}
-                                                >
-                                                    <Tooltip title="Editar post">
-                                                        <IconButton
-                                                            component={RouterLink}
-                                                            to={`/admin/blog/edit/${post.id}`}
-                                                            aria-label={`Editar ${post.title}`}
-                                                            sx={{
-                                                                color: 'var(--color-primary)',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, var(--color-primary) 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <EditRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-
-                                                    <Tooltip title="Eliminar post">
-                                                        <IconButton
-                                                            aria-label={`Eliminar ${post.title}`}
-                                                            onClick={() => handleDelete(post.id)}
-                                                            sx={{
-                                                                color: '#dc2626',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, #dc2626 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, #dc2626 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <DeleteRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                                B
+                                            </Avatar>
+                                        )}
+                                        title={post.title}
+                                        subtitle={`Por ${post.author?.name || 'Desconocido'}`}
+                                        badges={(
+                                            <>
+                                                <Chip size="small" icon={<FavoriteRoundedIcon />} label={`${post.likes} likes`} variant="outlined" />
+                                                <Chip size="small" icon={<ChatBubbleOutlineRoundedIcon />} label={`${post.comments?.length || 0} comentarios`} variant="outlined" />
+                                                <Chip size="small" label={post.isPublic ? 'Publicado' : 'Oculto'} color={post.isPublic ? 'success' : 'default'} sx={{ fontWeight: 950 }} />
+                                            </>
+                                        )}
+                                        actions={(
+                                            <>
+                                                <Tooltip title="Editar post">
+                                                    <IconButton component={RouterLink} to={`/admin/blog/edit/${post.id}`} aria-label={`Editar ${post.title}`} sx={{ color: 'var(--color-primary)' }}>
+                                                        <EditRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Eliminar post">
+                                                    <IconButton aria-label={`Eliminar ${post.title}`} onClick={() => handleDelete(post.id)} sx={{ color: '#dc2626' }}>
+                                                        <DeleteRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </>
+                                        )}
+                                    />
+                                ))}
+                            </AdminCardGrid>
+                        )}
+                    </Box>
                 )}
+
+
+                <AdminCardPagination
+                    page={page}
+                    pageSize={pageSize}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                    disabled={loading}
+                />
             </Paper>
         </Box>
     );

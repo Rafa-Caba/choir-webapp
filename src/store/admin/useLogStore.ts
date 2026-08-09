@@ -7,6 +7,7 @@ import {
     isTenantStoreRequestCurrent,
 } from '../tenantStoreScope';
 import type { Log, LogFilters } from '../../types/log';
+import type { PageSize } from '../../types/pagination';
 
 interface LogState {
     readonly logs: Log[];
@@ -16,11 +17,13 @@ interface LogState {
     readonly currentPage: number;
     readonly totalPages: number;
     readonly totalLogs: number;
+    readonly pageSize: PageSize;
     readonly loading: boolean;
     readonly searchQuery: string;
-    readonly fetchLogs: (page?: number, filters?: LogFilters) => Promise<void>;
+    readonly fetchLogs: (page?: number, pageSize?: PageSize, filters?: LogFilters) => Promise<void>;
     readonly fetchUserLogs: (userId: string) => Promise<void>;
     readonly setPage: (page: number) => void;
+    readonly setPageSize: (pageSize: PageSize) => void;
     readonly searchLogsText: (query: string) => void;
 }
 
@@ -58,15 +61,16 @@ export const useLogStore = create<LogState>((set, get) => ({
     currentPage: 1,
     totalPages: 1,
     totalLogs: 0,
+    pageSize: 10,
     loading: false,
     searchQuery: '',
 
-    fetchLogs: async (page = 1, filters = {}) => {
+    fetchLogs: async (page = 1, pageSize = get().pageSize, filters = {}) => {
         const scope = beginTenantStoreRequest();
         set({ loading: true, activeChoirId: scope.choirId });
 
         try {
-            const data = await getLogs(page, 20, filters);
+            const data = await getLogs(page, pageSize, filters);
 
             if (isTenantStoreRequestCurrent(scope)) {
                 const searchQuery = get().searchQuery;
@@ -76,6 +80,7 @@ export const useLogStore = create<LogState>((set, get) => ({
                     currentPage: data.currentPage,
                     totalPages: data.totalPages,
                     totalLogs: data.totalLogs,
+                    pageSize,
                 });
             }
         } finally {
@@ -103,6 +108,7 @@ export const useLogStore = create<LogState>((set, get) => ({
     },
 
     setPage: (page) => set({ currentPage: page }),
+    setPageSize: (pageSize) => set({ pageSize, currentPage: 1 }),
 
     searchLogsText: (query) => {
         const logs = get().logs;

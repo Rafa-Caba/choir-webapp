@@ -12,6 +12,7 @@ import type {
     CreateChoirPayload,
     PaginatedChoirResponse,
 } from '../../types/choir';
+import type { PageSize } from '../../types/pagination';
 
 interface ChoirState {
     readonly choirs: Choir[];
@@ -19,8 +20,9 @@ interface ChoirState {
     readonly currentPage: number;
     readonly totalPages: number;
     readonly totalChoirs: number;
+    readonly pageSize: PageSize;
     readonly loading: boolean;
-    readonly fetchChoirs: (page?: number) => Promise<void>;
+    readonly fetchChoirs: (page?: number, pageSize?: PageSize) => Promise<void>;
     readonly fetchChoir: (id: string) => Promise<Choir | null>;
     readonly saveChoirAction: (
         data: CreateChoirPayload,
@@ -29,6 +31,7 @@ interface ChoirState {
     ) => Promise<Choir>;
     readonly deleteChoirById: (id: string) => Promise<void>;
     readonly setCurrentPage: (page: number) => void;
+    readonly setPageSize: (pageSize: PageSize) => void;
     readonly getChoirByIdFromState: (id: string) => Choir | undefined;
 }
 
@@ -38,18 +41,20 @@ export const useChoirsStore = create<ChoirState>((set, get) => ({
     currentPage: 1,
     totalPages: 1,
     totalChoirs: 0,
+    pageSize: 10,
     loading: false,
 
-    fetchChoirs: async (page = 1) => {
+    fetchChoirs: async (page = 1, pageSize = get().pageSize) => {
         set({ loading: true });
 
         try {
-            const data: PaginatedChoirResponse = await getChoirs(page);
+            const data: PaginatedChoirResponse = await getChoirs(page, pageSize);
             set({
                 choirs: data.choirs,
                 currentPage: data.currentPage,
                 totalPages: data.totalPages,
                 totalChoirs: data.totalChoirs,
+                pageSize,
             });
         } finally {
             set({ loading: false });
@@ -109,5 +114,6 @@ export const useChoirsStore = create<ChoirState>((set, get) => ({
     },
 
     setCurrentPage: (page) => set({ currentPage: page }),
+    setPageSize: (pageSize) => set({ pageSize, currentPage: 1 }),
     getChoirByIdFromState: (id) => get().choirs.find((choir) => choir.id === id),
 }));

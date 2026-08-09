@@ -4,7 +4,7 @@ import type { TipTapContent } from './announcement';
 
 export interface SongType {
     id: string;
-    choirId: string;
+    choirId?: string;
 
     name: string;
     order: number;

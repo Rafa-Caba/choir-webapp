@@ -17,12 +17,6 @@ import {
     IconButton,
     InputAdornment,
     Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     TextField,
     Tooltip,
     Typography,
@@ -37,6 +31,10 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 
 import { useAnnouncementStore } from '../../store/admin/useAnnouncementStore';
+import { useClientPagination } from '../../hooks/useClientPagination';
+import { AdminCardGrid } from '../common/AdminCardGrid';
+import { AdminCardPagination } from '../common/AdminCardPagination';
+import { AdminListCard } from '../common/AdminListCard';
 import { TiptapViewer } from '../tiptap-components/TiptapViewer';
 import type { Announcement } from '../../types/announcement';
 import { parseText } from '../../utils/handleTextTipTap';
@@ -170,6 +168,16 @@ export const AdminAnnouncements = () => {
         announcement.title.toLowerCase().includes(search.toLowerCase()),
     );
 
+    const {
+        page,
+        pageSize,
+        totalPages,
+        totalItems,
+        paginatedItems: paginatedAnnouncements,
+        setPage,
+        setPageSize,
+    } = useClientPagination(filteredAnnouncements);
+
     const handleDelete = async (id: string) => {
         const result = await Swal.fire({
             title: '¿Estás seguro?',
@@ -263,7 +271,10 @@ export const AdminAnnouncements = () => {
                     label="Buscar"
                     placeholder="Buscar por título..."
                     value={search}
-                    onChange={(event) => setSearch(event.target.value)}
+                    onChange={(event) => {
+                        setSearch(event.target.value);
+                        setPage(1);
+                    }}
                     slotProps={{
                         input: {
                             startAdornment: (
@@ -292,204 +303,84 @@ export const AdminAnnouncements = () => {
                         </Box>
                     </Box>
                 ) : (
-                    <TableContainer
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            overflow: 'auto',
-                            borderRadius: 1.5,
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
-                            '&::-webkit-scrollbar': {
-                                display: 'none',
-                            },
-                        }}
-                    >
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    {['Imagen', 'Título', 'Contenido', 'Publicado', 'Acciones'].map((label) => (
-                                        <TableCell
-                                            key={label}
-                                            align={label === 'Acciones' ? 'right' : 'left'}
-                                            sx={{
-                                                backgroundColor:
-                                                    'color-mix(in srgb, var(--color-card) 82%, var(--color-primary) 18%)',
-                                                color: 'var(--color-text)',
-                                                fontWeight: 950,
-                                                borderBottom:
-                                                    '1px solid color-mix(in srgb, var(--color-border) 42%, transparent)',
-                                                whiteSpace: 'nowrap',
-                                            }}
-                                        >
-                                            {label}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            </TableHead>
-
-                            <TableBody>
-                                {filteredAnnouncements.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={5}
-                                            sx={{
-                                                py: 5,
-                                                textAlign: 'center',
-                                                color: 'var(--color-secondary-text)',
-                                                fontWeight: 800,
-                                                borderBottom: 'none',
-                                            }}
-                                        >
-                                            No se encontraron avisos con ese criterio.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredAnnouncements.map((announcement) => (
-                                        <TableRow
-                                            key={announcement.id}
-                                            hover
-                                            sx={{
-                                                '&:hover': {
-                                                    backgroundColor:
-                                                        'color-mix(in srgb, var(--color-primary) 8%, transparent)',
-                                                },
-                                            }}
-                                        >
-                                            <TableCell
-                                                sx={{
-                                                    width: 92,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                }}
+                    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: { xs: 0, md: 0.5 } }}>
+                        {filteredAnnouncements.length === 0 ? (
+                            <Typography sx={{ py: 5, textAlign: 'center', color: 'var(--color-secondary-text)', fontWeight: 800 }}>
+                                No se encontraron avisos con ese criterio.
+                            </Typography>
+                        ) : (
+                            <AdminCardGrid>
+                                {paginatedAnnouncements.map((announcement) => (
+                                    <AdminListCard
+                                        key={announcement.id}
+                                        leading={(
+                                            <Avatar
+                                                src={announcement.imageUrl || '/images/default-image.png'}
+                                                alt={announcement.title}
+                                                variant="rounded"
+                                                sx={{ width: 62, height: 62, borderRadius: 1.5, bgcolor: 'var(--color-primary)', fontWeight: 950 }}
                                             >
-                                                <Avatar
-                                                    src={announcement.imageUrl || '/images/default-image.png'}
-                                                    alt={announcement.title}
-                                                    variant="rounded"
-                                                    sx={{
-                                                        width: 54,
-                                                        height: 54,
-                                                        borderRadius: 1.5,
-                                                        bgcolor: 'var(--color-primary)',
-                                                        color: 'var(--color-button-text)',
-                                                        fontWeight: 950,
-                                                        boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)',
-                                                    }}
-                                                >
-                                                    A
-                                                </Avatar>
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    color: 'var(--color-text)',
-                                                    fontWeight: 950,
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 220,
-                                                    overflowWrap: 'anywhere',
-                                                }}
-                                            >
-                                                {announcement.title}
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 140,
-                                                }}
-                                            >
+                                                A
+                                            </Avatar>
+                                        )}
+                                        title={announcement.title}
+                                        badges={(
+                                            <Chip
+                                                size="small"
+                                                label={announcement.isPublic ? 'Público' : 'Privado'}
+                                                color={announcement.isPublic ? 'success' : 'default'}
+                                                sx={{ fontWeight: 950 }}
+                                            />
+                                        )}
+                                        actions={(
+                                            <>
                                                 <Button
                                                     size="small"
                                                     variant="outlined"
                                                     startIcon={<VisibilityRoundedIcon />}
                                                     onClick={() => openModal(announcement)}
-                                                    sx={{
-                                                        borderRadius: 1.5,
-                                                        fontWeight: 950,
-                                                    }}
+                                                    sx={{ borderRadius: 1.5, fontWeight: 950 }}
                                                 >
                                                     Ver más
                                                 </Button>
-                                            </TableCell>
-
-                                            <TableCell
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 120,
-                                                }}
-                                            >
-                                                <Chip
-                                                    size="small"
-                                                    label={announcement.isPublic ? 'Sí' : 'No'}
-                                                    color={announcement.isPublic ? 'success' : 'default'}
-                                                    sx={{ fontWeight: 950 }}
-                                                />
-                                            </TableCell>
-
-                                            <TableCell
-                                                align="right"
-                                                sx={{
-                                                    borderBottom:
-                                                        '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
-                                                    minWidth: 140,
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        justifyContent: 'flex-end',
-                                                        gap: 0.75,
-                                                    }}
-                                                >
-                                                    <Tooltip title="Editar aviso">
-                                                        <IconButton
-                                                            component={RouterLink}
-                                                            to={`/admin/announcements/edit/${announcement.id}`}
-                                                            aria-label={`Editar ${announcement.title}`}
-                                                            sx={{
-                                                                color: 'var(--color-primary)',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, var(--color-primary) 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <EditRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-
-                                                    <Tooltip title="Eliminar aviso">
-                                                        <IconButton
-                                                            aria-label={`Eliminar ${announcement.title}`}
-                                                            onClick={() => handleDelete(announcement.id)}
-                                                            sx={{
-                                                                color: '#dc2626',
-                                                                backgroundColor:
-                                                                    'color-mix(in srgb, #dc2626 10%, transparent)',
-                                                                '&:hover': {
-                                                                    backgroundColor:
-                                                                        'color-mix(in srgb, #dc2626 18%, transparent)',
-                                                                },
-                                                            }}
-                                                        >
-                                                            <DeleteRoundedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                                <Tooltip title="Editar aviso">
+                                                    <IconButton
+                                                        component={RouterLink}
+                                                        to={`/admin/announcements/edit/${announcement.id}`}
+                                                        aria-label={`Editar ${announcement.title}`}
+                                                        sx={{ color: 'var(--color-primary)' }}
+                                                    >
+                                                        <EditRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Eliminar aviso">
+                                                    <IconButton
+                                                        aria-label={`Eliminar ${announcement.title}`}
+                                                        onClick={() => handleDelete(announcement.id)}
+                                                        sx={{ color: '#dc2626' }}
+                                                    >
+                                                        <DeleteRoundedIcon />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </>
+                                        )}
+                                    />
+                                ))}
+                            </AdminCardGrid>
+                        )}
+                    </Box>
                 )}
+
+
+                <AdminCardPagination
+                    page={page}
+                    pageSize={pageSize}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                    disabled={loading}
+                />
             </Paper>
 
             <Dialog

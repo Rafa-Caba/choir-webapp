@@ -160,7 +160,9 @@ export const InstrumentPickerModal = ({
                             fontWeight: 800,
                         }}
                     >
-                        No se encontraron instrumentos con ese criterio.
+                        {instruments.length === 0 && searchTerm.trim().length === 0
+                            ? 'No hay instrumentos configurados para este coro. Puedes escribir uno manualmente en el formulario.'
+                            : 'No se encontraron instrumentos con ese criterio.'}
                     </Typography>
                 ) : (
                     <Box

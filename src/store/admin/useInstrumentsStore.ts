@@ -18,6 +18,8 @@ interface InstrumentsState {
     readonly currentInstrument: Instrument | null;
     readonly activeChoirId: string | null;
     readonly loading: boolean;
+    readonly hasAttemptedLoad: boolean;
+    readonly loadFailed: boolean;
     readonly fetchInstruments: () => Promise<void>;
     readonly fetchInstrumentById: (id: string) => Promise<Instrument | null>;
     readonly saveInstrumentAction: (
@@ -45,17 +47,42 @@ export const useInstrumentsStore = create<InstrumentsState>((set, get) => ({
     currentInstrument: null,
     activeChoirId: null,
     loading: false,
+    hasAttemptedLoad: false,
+    loadFailed: false,
 
     fetchInstruments: async () => {
         const scope = beginTenantStoreRequest();
-        set({ loading: true, activeChoirId: scope.choirId });
+        const state = get();
+
+        if (state.activeChoirId === scope.choirId && state.loading) {
+            return;
+        }
+
+        set({
+            loading: true,
+            hasAttemptedLoad: true,
+            loadFailed: false,
+            activeChoirId: scope.choirId,
+        });
 
         try {
             const instruments = await getInstruments();
 
             if (isTenantStoreRequestCurrent(scope)) {
-                set({ instruments });
+                set({
+                    instruments,
+                    loadFailed: false,
+                });
             }
+        } catch (error) {
+            if (isTenantStoreRequestCurrent(scope)) {
+                set({
+                    instruments: [],
+                    loadFailed: true,
+                });
+            }
+
+            throw error;
         } finally {
             if (isTenantStoreRequestCurrent(scope)) {
                 set({ loading: false });
