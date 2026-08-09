@@ -1,8 +1,9 @@
 // src/routing/adminNavigation.ts
 
 import {
-    ADMIN_USERS_ROUTE,
+    ADMIN_ROOT_ROUTE,
     PLATFORM_CHOIRS_ROUTE,
+    buildPlatformChoirUsersRoute,
 } from './index.js';
 
 export interface AdminEntryState {
@@ -18,4 +19,8 @@ export const resolveAdminEntryRedirect = (
         : null
 );
 
-export const getSelectedChoirLandingRoute = (): string => ADMIN_USERS_ROUTE;
+export const getEnteredChoirLandingRoute = (): string => ADMIN_ROOT_ROUTE;
+
+export const getPlatformChoirUsersRoute = (choirId: string): string => (
+    buildPlatformChoirUsersRoute(choirId)
+);

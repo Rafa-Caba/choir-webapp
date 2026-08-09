@@ -24,6 +24,7 @@
     "src/utils/choirCode.ts",
     "src/services/public/publicPath.ts",
     "src/store/tenantStoreScope.ts",
+    "src/store/platform/platformContext.ts",
     "src/users/temporaryPassword.ts",
     "src/storage/appStorage.ts",
     "src/storage/chatStorage.ts",

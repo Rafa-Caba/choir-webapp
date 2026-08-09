@@ -1,3 +1,5 @@
+<!-- README.md -->
+
 # Choir Web App
 
 Choir Web App is the Web surface of **Choir App**. It shares `choirs-api` with the React Native application and is divided into two clearly isolated contexts:
@@ -41,17 +43,27 @@ The API is the authority for `userId`, role, and `choirId`.
 
 ### Platform Console
 
-`SUPER_ADMIN` uses the platform login and remains outside of a tenant context until a choir is explicitly selected.
+`SUPER_ADMIN` uses the platform login and remains inside the platform surface until explicitly choosing to enter a choir's full tenant administration.
 
-When clicking **Manage Choir**:
+Each active choir exposes two distinct actions, matching Choir RN:
 
-1. The target choir is selected and persisted.
-2. Stores from the previous tenant are cleared.
-3. The user enters directly at `/admin/users`.
-4. Axios adds `x-target-choir-id` only to tenant routes.
+**Users**
+
+1. The choir is selected as the platform target.
+2. The platform surface remains active.
+3. The browser opens `/admin/choirs/:choirId/users`.
+4. Axios adds `x-target-choir-id` to the tenant-scoped user requests.
+5. Tenant navigation, announcements, settings, branding, and Socket.IO chat are not mounted.
+
+**Enter Choir**
+
+1. The choir becomes the active tenant context.
+2. Tenant stores are isolated to that choir.
+3. The browser opens `/admin`.
+4. The full choir administration surface becomes available according to permissions.
 5. Socket.IO connects using `{ accessToken, targetChoirId }`.
 
-User administration uses the same tenant CRUD used by an `ADMIN`; `choirId` is never sent in the request body as the source of authority.
+Platform user administration reuses the same tenant user API contracts used by an `ADMIN`, but stays visually and navigationally inside the platform console. `choirId` is never sent in the request body as the source of authority.
 
 ## Session and Security
 

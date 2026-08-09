@@ -8,6 +8,7 @@ import { PasswordChangeRoute } from './components/auth/PasswordChangeRoute';
 import { RoleGuard } from './components/auth/RoleGuard';
 import { TenantContextGuard } from './components/auth/TenantContextGuard';
 import { PlatformContextGuard } from './components/auth/PlatformContextGuard';
+import { PlatformChoirTargetGuard } from './components/auth/PlatformChoirTargetGuard';
 import type { PermissionKey } from './auth/permissions';
 import './assets/styles/global.scss';
 import { HomePage } from './pages/public/Home';
@@ -61,6 +62,8 @@ import { EditProfile } from './pages/admin/user/EditProfile';
 import { PublicTestDashboard } from './pages/admin/log/PublicTestDashboard';
 import { InstrumentsList } from './pages/admin/instruments/InstrumentsList';
 import { InstrumentForm } from './pages/admin/instruments/InstrumentForm';
+import { PlatformChoirUsers } from './pages/admin/platform/PlatformChoirUsers';
+import { PlatformChoirUserForm } from './pages/admin/platform/PlatformChoirUserForm';
 
 const requirePermission = (element: JSX.Element, permission: PermissionKey): JSX.Element => (
     <RoleGuard permission={permission}>{element}</RoleGuard>
@@ -75,6 +78,14 @@ const requireTenant = (element: JSX.Element, permission?: PermissionKey): JSX.El
 const requirePlatform = (element: JSX.Element, permission: PermissionKey): JSX.Element => (
     <PlatformContextGuard>
         {requirePermission(element, permission)}
+    </PlatformContextGuard>
+);
+
+const requirePlatformTarget = (element: JSX.Element, permission: PermissionKey): JSX.Element => (
+    <PlatformContextGuard>
+        <PlatformChoirTargetGuard>
+            {requirePermission(element, permission)}
+        </PlatformChoirTargetGuard>
     </PlatformContextGuard>
 );
 
@@ -107,6 +118,9 @@ function App() {
                 <Route path="choirs/new" element={requirePlatform(<ChoirForm />, 'canManageChoirs')} />
                 <Route path="choirs/edit/:id" element={requirePlatform(<ChoirForm />, 'canManageChoirs')} />
                 <Route path="choirs/view/:id" element={requirePlatform(<AdminChoirDetail />, 'canManageChoirs')} />
+                <Route path="choirs/:choirId/users" element={requirePlatformTarget(<PlatformChoirUsers />, 'canManageUsers')} />
+                <Route path="choirs/:choirId/users/new" element={requirePlatformTarget(<PlatformChoirUserForm />, 'canManageUsers')} />
+                <Route path="choirs/:choirId/users/edit/:id" element={requirePlatformTarget(<PlatformChoirUserForm />, 'canManageUsers')} />
 
                 <Route path="users" element={requireTenant(<UsersList />, 'canManageUsers')} />
                 <Route path="users/new" element={requireTenant(<UserForm />, 'canManageUsers')} />

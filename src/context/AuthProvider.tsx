@@ -40,6 +40,7 @@ import { clearPublicBrandCache } from '../storage/publicBrandStorage';
 import { registerTenantStoreScope } from '../store/tenantStoreScope';
 import { useChatStore } from '../store/admin/useChatStore';
 import { useTargetChoirStore, type PlatformViewMode } from '../store/platform';
+import { isPlatformTenantContextActive } from '../store/platform/platformContext';
 import type {
     AccessMode,
     AuthenticatedChoir,
@@ -101,9 +102,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         selectedChoir: targetChoir,
         viewMode,
         status: targetChoirStatus,
-        selectChoir,
+        enterChoir,
         restoreTargetChoir,
-        leaveTenantContext,
+        returnToPlatform: returnTargetToPlatform,
         clearSelection,
     } = useTargetChoirStore();
 
@@ -222,11 +223,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         passwordChangeRequired: boolean,
     ): void => {
         const chatStore = useChatStore.getState();
+        const targetChoirState = useTargetChoirStore.getState();
         const targetChoirId = currentUser.role === 'SUPER_ADMIN'
-            ? useTargetChoirStore.getState().selectedChoir?.id ?? null
+            ? targetChoirState.selectedChoir?.id ?? null
             : currentUser.choirId;
+        const tenantModeIsActive = currentUser.role !== 'SUPER_ADMIN'
+            || targetChoirState.viewMode === 'tenant';
 
-        if (passwordChangeRequired || !targetChoirId) {
+        if (passwordChangeRequired || !targetChoirId || !tenantModeIsActive) {
             chatStore.disconnect();
             return;
         }
@@ -269,10 +273,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             setRequiresPasswordChange(currentSession.requiresPasswordChange);
             setUser(currentSession.user);
 
-            if (currentSession.user.role === 'SUPER_ADMIN' && restoredMode === 'tenant') {
+            if (currentSession.user.role === 'SUPER_ADMIN') {
                 const restoredTargetChoir = await restoreTargetChoir();
 
-                if (!restoredTargetChoir) {
+                if (restoredMode === 'tenant' && !restoredTargetChoir) {
                     restoredMode = 'platform';
                 }
             } else {
@@ -434,7 +438,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             throw new Error('Only SUPER_ADMIN users can select a platform tenant context');
         }
 
-        selectChoir(selectedChoir);
+        enterChoir(selectedChoir);
         accessModeRef.current = 'tenant';
         writeAccessMode('tenant');
         setAccessMode('tenant');
@@ -445,19 +449,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (currentAccessToken) {
             connectTenantChat(currentAccessToken, user, requiresPasswordChange);
         }
-    }, [connectTenantChat, requiresPasswordChange, selectChoir, user]);
+    }, [connectTenantChat, enterChoir, requiresPasswordChange, user]);
 
     const returnToPlatform = useCallback((): void => {
         if (user?.role !== 'SUPER_ADMIN') {
             return;
         }
 
-        leaveTenantContext();
+        returnTargetToPlatform();
         accessModeRef.current = 'platform';
         writeAccessMode('platform');
         setAccessMode('platform');
         setErrorMessage('');
-    }, [leaveTenantContext, user?.role]);
+    }, [returnTargetToPlatform, user?.role]);
 
     const clearError = useCallback((): void => {
         setErrorMessage('');
@@ -481,7 +485,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     effectiveChoirIdRef.current = effectiveChoirId;
     registerTenantStoreScope(() => effectiveChoirIdRef.current);
 
-    const hasTenantContext = Boolean(effectiveChoirId);
+    const hasTenantContext = user?.role === 'SUPER_ADMIN'
+        ? isPlatformTenantContextActive(viewMode, targetChoir?.id ?? null)
+        : Boolean(effectiveChoirId);
     const resolvedViewMode: PlatformViewMode = user?.role === 'SUPER_ADMIN'
         ? viewMode
         : 'tenant';

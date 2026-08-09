@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { registerTenantContextBridge } from '../../api/tenantContextBridge';
 import { getChoirById } from '../../services/admin/choirs';
 import {
+    readAccessMode,
     readTargetChoirId,
     writeTargetChoirId,
 } from '../../storage/sessionStorage';
@@ -19,9 +20,10 @@ interface TargetChoirState {
     readonly status: TargetChoirStatus;
     readonly errorMessage: string;
     readonly selectChoir: (choir: Choir) => void;
+    readonly enterChoir: (choir: Choir) => void;
     readonly restoreTargetChoir: () => Promise<Choir | null>;
     readonly syncSelectedChoir: (choir: Choir) => void;
-    readonly leaveTenantContext: () => void;
+    readonly returnToPlatform: () => void;
     readonly clearSelection: () => void;
 }
 
@@ -29,23 +31,42 @@ const clearPersistedSelection = (): void => {
     writeTargetChoirId(null);
 };
 
+const assertActiveChoir = (choir: Choir): void => {
+    if (!choir.isActive) {
+        throw new Error('Inactive choirs cannot be selected as a platform target');
+    }
+};
+
+const resetStoresWhenChoirChanges = (
+    currentChoirId: string | null,
+    nextChoirId: string,
+): void => {
+    if (currentChoirId !== nextChoirId) {
+        resetTenantStores();
+    }
+};
+
 export const useTargetChoirStore = create<TargetChoirState>((set, get) => ({
     selectedChoir: null,
-    viewMode: readTargetChoirId() ? 'tenant' : 'platform',
+    viewMode: readAccessMode() === 'tenant' ? 'tenant' : 'platform',
     status: 'idle',
     errorMessage: '',
 
     selectChoir: (choir) => {
-        if (!choir.isActive) {
-            throw new Error('Inactive choirs cannot be selected as a tenant context');
-        }
+        assertActiveChoir(choir);
+        resetStoresWhenChoirChanges(get().selectedChoir?.id ?? null, choir.id);
+        writeTargetChoirId(choir.id);
+        set({
+            selectedChoir: choir,
+            viewMode: 'platform',
+            status: 'ready',
+            errorMessage: '',
+        });
+    },
 
-        const currentChoirId = get().selectedChoir?.id ?? null;
-
-        if (currentChoirId !== choir.id) {
-            resetTenantStores();
-        }
-
+    enterChoir: (choir) => {
+        assertActiveChoir(choir);
+        resetStoresWhenChoirChanges(get().selectedChoir?.id ?? null, choir.id);
         writeTargetChoirId(choir.id);
         set({
             selectedChoir: choir,
@@ -87,7 +108,7 @@ export const useTargetChoirStore = create<TargetChoirState>((set, get) => ({
 
             set({
                 selectedChoir: choir,
-                viewMode: 'tenant',
+                viewMode: readAccessMode() === 'tenant' ? 'tenant' : 'platform',
                 status: 'ready',
                 errorMessage: '',
             });
@@ -126,11 +147,9 @@ export const useTargetChoirStore = create<TargetChoirState>((set, get) => ({
         set({ selectedChoir: choir, errorMessage: '' });
     },
 
-    leaveTenantContext: () => {
+    returnToPlatform: () => {
         resetTenantStores();
-        clearPersistedSelection();
         set({
-            selectedChoir: null,
             viewMode: 'platform',
             status: 'ready',
             errorMessage: '',
@@ -138,6 +157,7 @@ export const useTargetChoirStore = create<TargetChoirState>((set, get) => ({
     },
 
     clearSelection: () => {
+        resetTenantStores();
         clearPersistedSelection();
         set({
             selectedChoir: null,

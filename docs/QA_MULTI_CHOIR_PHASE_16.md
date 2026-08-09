@@ -1,3 +1,5 @@
+<!-- docs/QA_MULTI_CHOIR_PHASE_16.md -->
+
 # docs/QA_MULTI_CHOIR_PHASE_16.md
 
 # QA multi-coro — Fase 16
@@ -24,16 +26,25 @@ Esta matriz cierra la validación funcional de Choir Web App antes de producció
 - [ ] `VIEWER` no ve acciones administrativas de escritura.
 - [ ] Una contraseña temporal bloquea el resto de la consola hasta cambiarse.
 
-## Flujo SUPER_ADMIN — Administrar coro
+## Flujo SUPER_ADMIN — Usuarios desde plataforma
 
-- [ ] Abrir un coro desde `/admin/choirs`.
-- [ ] Pulsar **Administrar coro**.
-- [ ] Confirmar navegación directa a `/admin/users`.
-- [ ] Confirmar que el header muestra el coro seleccionado.
-- [ ] Confirmar que `GET /api/users` envía `x-target-choir-id` con ese coro.
-- [ ] Crear un usuario y confirmar que pertenece al coro seleccionado.
-- [ ] Cambiar de Coro A a Coro B y confirmar limpieza inmediata de usuarios/stores de A.
-- [ ] Volver a consola y confirmar que desaparece `x-target-choir-id` en rutas de plataforma.
+- [ ] Abrir `/admin/choirs`.
+- [ ] Pulsar **Usuarios** en Coro A.
+- [ ] Confirmar navegación a `/admin/choirs/<choirId>/users`.
+- [ ] Confirmar que el header y sidebar continúan mostrando **Choir Platform**, no el Admin normal del coro.
+- [ ] Confirmar que no aparecen navegación tenant, avisos laterales ni chat del coro.
+- [ ] Confirmar que `GET /api/users` envía `x-target-choir-id` de Coro A.
+- [ ] Crear, editar, suspender/reactivar y resetear contraseña sin salir de la superficie Platform.
+- [ ] Refrescar directamente `/admin/choirs/<choirId>/users` y confirmar restauración del target.
+- [ ] Abrir Usuarios de Coro B y confirmar limpieza inmediata del store de usuarios de A.
+
+## Flujo SUPER_ADMIN — Entrar al coro
+
+- [ ] Desde `/admin/choirs`, pulsar **Entrar** o **Entrar al coro**.
+- [ ] Confirmar navegación a `/admin`.
+- [ ] Confirmar que ahora sí aparece la navegación tenant completa del coro.
+- [ ] Confirmar que Socket.IO conecta con `accessToken + targetChoirId`.
+- [ ] Pulsar **Volver a consola** y confirmar regreso a modo Platform sin mezclar layout tenant.
 
 ## Respuestas tardías y aislamiento tenant
 
@@ -78,7 +89,7 @@ Esta matriz cierra la validación funcional de Choir Web App antes de producció
 ## Refresh y deep links
 
 - [ ] Refresh en `/coro-a/blog` vuelve a cargar correctamente.
-- [ ] Refresh en `/admin/users` restaura sesión y target seleccionado.
+- [ ] Refresh en `/admin/choirs/<choirId>/users` restaura sesión y target seleccionado sin entrar al layout tenant.
 - [ ] Refresh en `/admin/choirs` mantiene modo plataforma cuando no existe target.
 - [ ] Varias respuestas `401` concurrentes generan un solo refresh compartido.
 

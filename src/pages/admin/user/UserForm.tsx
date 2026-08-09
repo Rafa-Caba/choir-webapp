@@ -36,6 +36,11 @@ import {
     TEMPORARY_PASSWORD_HELP_TEXT,
 } from '../../../users/temporaryPassword';
 
+interface UserFormProps {
+    readonly usersPath?: string;
+    readonly contextLabel?: string;
+}
+
 interface UserFormState {
     name: string;
     username: string;
@@ -76,7 +81,10 @@ const isTenantUserRole = (value: string): value is TenantUserRole => (
     value === 'ADMIN' || value === 'EDITOR' || value === 'USER' || value === 'VIEWER'
 );
 
-export const UserForm = () => {
+export const UserForm = ({
+    usersPath = '/admin/users',
+    contextLabel,
+}: UserFormProps) => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
@@ -132,7 +140,7 @@ export const UserForm = () => {
                     'No fue posible cargar el usuario dentro del coro activo.',
                     'error',
                 );
-                navigate('/admin/users', { replace: true });
+                navigate(usersPath, { replace: true });
                 return;
             }
 
@@ -155,7 +163,7 @@ export const UserForm = () => {
         };
 
         void loadData();
-    }, [fetchUser, id, isEdit, navigate]);
+    }, [fetchUser, id, isEdit, navigate, usersPath]);
 
     useEffect(() => {
         return () => {
@@ -291,7 +299,7 @@ export const UserForm = () => {
                 );
             }
 
-            navigate('/admin/users');
+            navigate(usersPath);
         } catch {
             Swal.fire('Error', 'No se pudo guardar el usuario', 'error');
         } finally {
@@ -403,7 +411,9 @@ export const UserForm = () => {
                                     fontSize: '0.9rem',
                                 }}
                             >
-                                Gestiona datos personales, rol, instrumento, voz y foto de perfil.
+                                {contextLabel
+                                    ? `Gestiona este usuario dentro de ${contextLabel}.`
+                                    : 'Gestiona datos personales, rol, instrumento, voz y foto de perfil.'}
                             </Typography>
                         </Box>
                     </Box>
@@ -411,7 +421,7 @@ export const UserForm = () => {
                     <Button
                         variant="outlined"
                         startIcon={<ArrowBackRoundedIcon />}
-                        onClick={() => navigate('/admin/users')}
+                        onClick={() => navigate(usersPath)}
                         disabled={loading}
                         sx={{
                             borderRadius: 1.5,
@@ -766,7 +776,7 @@ export const UserForm = () => {
                         <Button
                             variant="outlined"
                             startIcon={<ArrowBackRoundedIcon />}
-                            onClick={() => navigate('/admin/users')}
+                            onClick={() => navigate(usersPath)}
                             disabled={loading}
                             sx={{
                                 borderRadius: 1.5,

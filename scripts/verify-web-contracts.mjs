@@ -11,6 +11,9 @@ const requiredFiles = [
     '.env.production.example',
     'vercel.json',
     'src/types/announcement.ts',
+    'src/components/auth/PlatformChoirTargetGuard.tsx',
+    'src/pages/admin/platform/PlatformChoirUsers.tsx',
+    'src/pages/admin/platform/PlatformChoirUserForm.tsx',
 ];
 const forbiddenFiles = [
     'src/types/annoucement.ts',
@@ -74,6 +77,25 @@ for (const filePath of walk(sourceRoot)) {
             failures.push(`${displayPath}: ${rule.label}`);
         }
     }
+}
+
+
+const platformChoirListPath = join(root, 'src/components/choirs/AdminChoirList.tsx');
+const platformChoirListContents = readFileSync(platformChoirListPath, 'utf8');
+
+if (!platformChoirListContents.includes('buildPlatformChoirUsersRoute')) {
+    failures.push('AdminChoirList.tsx: platform user management must use the platform choir route');
+}
+
+if (/navigate\(\s*['"]\/admin\/users/u.test(platformChoirListContents)) {
+    failures.push('AdminChoirList.tsx: platform user management must not navigate directly to /admin/users');
+}
+
+const targetStorePath = join(root, 'src/store/platform/useTargetChoirStore.ts');
+const targetStoreContents = readFileSync(targetStorePath, 'utf8');
+
+if (!targetStoreContents.includes('enterChoir:')) {
+    failures.push('useTargetChoirStore.ts: selectChoir and enterChoir must remain separate platform actions');
 }
 
 const environmentExamples = [

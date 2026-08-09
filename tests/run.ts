@@ -33,9 +33,11 @@ import {
     parseRequestTimeout,
 } from '../src/config/envParsing.js';
 import {
-    getSelectedChoirLandingRoute,
+    getEnteredChoirLandingRoute,
+    getPlatformChoirUsersRoute,
     resolveAdminEntryRedirect,
 } from '../src/routing/adminNavigation.js';
+import { isPlatformTenantContextActive } from '../src/store/platform/platformContext.js';
 
 interface TestCase {
     readonly name: string;
@@ -303,7 +305,7 @@ const testCases: TestCase[] = [
         },
     },
     {
-        name: 'tenant users and selected platform tenants do not redirect away from admin',
+        name: 'tenant users and entered platform tenants do not redirect away from admin',
         run: () => {
             assertEqual(
                 resolveAdminEntryRedirect({ isSuperAdmin: true, hasTenantContext: true }),
@@ -316,9 +318,26 @@ const testCases: TestCase[] = [
         },
     },
     {
-        name: 'selecting a choir from platform lands on tenant user administration',
+        name: 'a selected platform choir does not activate the tenant admin surface',
         run: () => {
-            assertEqual(getSelectedChoirLandingRoute(), '/admin/users');
+            assertEqual(isPlatformTenantContextActive('platform', 'choir-a'), false);
+            assertEqual(isPlatformTenantContextActive('tenant', null), false);
+            assertEqual(isPlatformTenantContextActive('tenant', 'choir-a'), true);
+        },
+    },
+    {
+        name: 'entering a choir from platform opens the full tenant admin surface',
+        run: () => {
+            assertEqual(getEnteredChoirLandingRoute(), '/admin');
+        },
+    },
+    {
+        name: 'platform user management stays under the platform choir route',
+        run: () => {
+            assertEqual(
+                getPlatformChoirUsersRoute('choir-a'),
+                '/admin/choirs/choir-a/users',
+            );
         },
     },
 ];

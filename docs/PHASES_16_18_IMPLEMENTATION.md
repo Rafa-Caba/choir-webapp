@@ -1,3 +1,5 @@
+<!-- docs/PHASES_16_18_IMPLEMENTATION.md -->
+
 # docs/PHASES_16_18_IMPLEMENTATION.md
 
 # Fases 16, 17 y 18 — Implementación final
@@ -22,34 +24,42 @@ Se agregó `scripts/verify-web-contracts.mjs` para impedir que regresen contrato
 
 La matriz funcional completa está en `docs/QA_MULTI_CHOIR_PHASE_16.md`.
 
-## Corrección — Administrar coro
+## Corrección final — separación Platform vs Tenant
 
-Se comparó el flujo Web con Choir RN.
+Se comparó nuevamente el flujo Web con Choir RN y se corrigió una diferencia arquitectónica importante.
 
-RN realiza:
+RN distingue dos operaciones en `useTargetChoirStore`:
 
 ```text
 selectChoir(choir)
-→ UsersListScreen
+→ conserva viewMode = platform
+→ UsersListScreen / AuditLogsScreen
+
+enterChoir(choir)
+→ viewMode = tenant
+→ aplicación administrativa completa del coro
 ```
 
-La Web realizaba:
+La Web ahora replica esa separación:
 
 ```text
-enterTenantContext(choir)
+Usuarios
+→ selectChoir(choir)
+→ /admin/choirs/:choirId/users
+→ mantiene Choir Platform
+→ usa x-target-choir-id solo para las llamadas necesarias
+→ no monta navegación tenant, avisos ni chat
+
+Entrar al coro
+→ enterTenantContext(choir)
 → /admin
-→ AdminEntryRoute todavía podía leer el contexto anterior
-→ /admin/choirs
+→ monta el Admin completo del coro
+→ habilita Socket.IO tenant
 ```
 
-La Web ahora realiza:
+`selectedChoir` ya no implica por sí mismo que la UI haya entrado al modo tenant. Para `SUPER_ADMIN`, `hasTenantContext` requiere simultáneamente un target y `viewMode === 'tenant'`.
 
-```text
-enterTenantContext(choir)
-→ /admin/users
-```
-
-El target ya queda persistido antes de la navegación y Axios continúa usando `x-target-choir-id` para las llamadas tenant.
+También se agregaron rutas Platform dedicadas para listar, crear y editar usuarios del coro seleccionado y un guard que restaura el target a partir de `:choirId` al refrescar o abrir un deep link.
 
 ## Fase 17 — Ambientes y despliegue
 

@@ -14,10 +14,13 @@ import {
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
+import PeopleRoundedIcon from '@mui/icons-material/PeopleRounded';
 import LoginRoundedIcon from '@mui/icons-material/LoginRounded';
 import { useChoirsStore } from '../../store/admin/useChoirsStore';
 import { useAuth } from '../../context/AuthContext';
-import { getSelectedChoirLandingRoute } from '../../routing/adminNavigation';
+import { getEnteredChoirLandingRoute } from '../../routing/adminNavigation';
+import { buildPlatformChoirUsersRoute } from '../../routing';
+import { useTargetChoirStore } from '../../store/platform/useTargetChoirStore';
 
 const formatDate = (value: string | undefined): string => {
     if (!value) {
@@ -40,6 +43,7 @@ export const AdminChoirDetail = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { enterTenantContext } = useAuth();
+    const selectPlatformChoir = useTargetChoirStore((state) => state.selectChoir);
     const {
         selectedChoir,
         fetchChoir,
@@ -75,7 +79,12 @@ export const AdminChoirDetail = () => {
 
     const handleEnterTenantContext = (): void => {
         enterTenantContext(selectedChoir);
-        navigate(getSelectedChoirLandingRoute(), { replace: true });
+        navigate(getEnteredChoirLandingRoute(), { replace: true });
+    };
+
+    const handleManageUsers = (): void => {
+        selectPlatformChoir(selectedChoir);
+        navigate(buildPlatformChoirUsersRoute(selectedChoir.id));
     };
 
     return (
@@ -170,13 +179,22 @@ export const AdminChoirDetail = () => {
                             Editar
                         </Button>
                         <Button
+                            variant="outlined"
+                            startIcon={<PeopleRoundedIcon />}
+                            disabled={!selectedChoir.isActive}
+                            onClick={handleManageUsers}
+                            sx={{ borderRadius: 1.5, fontWeight: 950 }}
+                        >
+                            Usuarios
+                        </Button>
+                        <Button
                             variant="contained"
                             startIcon={<LoginRoundedIcon />}
                             disabled={!selectedChoir.isActive}
                             onClick={handleEnterTenantContext}
                             sx={{ borderRadius: 1.5, fontWeight: 950 }}
                         >
-                            Administrar coro
+                            Entrar al coro
                         </Button>
                     </Box>
                 </Box>

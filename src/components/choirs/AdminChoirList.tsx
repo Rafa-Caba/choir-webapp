@@ -28,17 +28,21 @@ import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
+import PeopleRoundedIcon from '@mui/icons-material/PeopleRounded';
 import LoginRoundedIcon from '@mui/icons-material/LoginRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 
 import { useChoirsStore } from '../../store/admin/useChoirsStore';
 import { useAuth } from '../../context/AuthContext';
-import { getSelectedChoirLandingRoute } from '../../routing/adminNavigation';
+import { getEnteredChoirLandingRoute } from '../../routing/adminNavigation';
+import { buildPlatformChoirUsersRoute } from '../../routing';
+import { useTargetChoirStore } from '../../store/platform/useTargetChoirStore';
 import type { Choir } from '../../types/choir';
 
 export const AdminChoirList = () => {
     const navigate = useNavigate();
-    const { enterTenantContext } = useAuth();
+    const { enterTenantContext, targetChoir } = useAuth();
+    const selectPlatformChoir = useTargetChoirStore((state) => state.selectChoir);
     const {
         choirs,
         currentPage,
@@ -82,11 +86,24 @@ export const AdminChoirList = () => {
     const handleEnterChoir = (choir: Choir): void => {
         try {
             enterTenantContext(choir);
-            navigate(getSelectedChoirLandingRoute(), { replace: true });
+            navigate(getEnteredChoirLandingRoute(), { replace: true });
         } catch {
             Swal.fire(
                 'Coro no disponible',
                 'Solo puedes administrar coros activos.',
+                'warning',
+            );
+        }
+    };
+
+    const handleManageUsers = (choir: Choir): void => {
+        try {
+            selectPlatformChoir(choir);
+            navigate(buildPlatformChoirUsersRoute(choir.id));
+        } catch {
+            Swal.fire(
+                'Coro no disponible',
+                'Activa el coro antes de administrar sus usuarios.',
                 'warning',
             );
         }
@@ -372,19 +389,29 @@ export const AdminChoirList = () => {
                                                         '1px solid color-mix(in srgb, var(--color-border) 32%, transparent)',
                                                 }}
                                             >
-                                                <Chip
-                                                    size="small"
-                                                    label={choir.isActive ? 'Activo' : 'Inactivo'}
-                                                    sx={{
-                                                        color: choir.isActive
-                                                            ? '#ffffff'
-                                                            : 'var(--color-text)',
-                                                        backgroundColor: choir.isActive
-                                                            ? '#16a34a'
-                                                            : 'color-mix(in srgb, var(--color-card) 74%, var(--color-border) 26%)',
-                                                        fontWeight: 950,
-                                                    }}
-                                                />
+                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                                    <Chip
+                                                        size="small"
+                                                        label={choir.isActive ? 'Activo' : 'Inactivo'}
+                                                        sx={{
+                                                            color: choir.isActive
+                                                                ? '#ffffff'
+                                                                : 'var(--color-text)',
+                                                            backgroundColor: choir.isActive
+                                                                ? '#16a34a'
+                                                                : 'color-mix(in srgb, var(--color-card) 74%, var(--color-border) 26%)',
+                                                            fontWeight: 950,
+                                                        }}
+                                                    />
+                                                    {targetChoir?.id === choir.id && (
+                                                        <Chip
+                                                            size="small"
+                                                            label="Seleccionado"
+                                                            variant="outlined"
+                                                            sx={{ fontWeight: 950 }}
+                                                        />
+                                                    )}
+                                                </Box>
                                             </TableCell>
 
                                             <TableCell
@@ -417,6 +444,26 @@ export const AdminChoirList = () => {
                                                             >
                                                                 <LoginRoundedIcon />
                                                             </IconButton>
+                                                        </span>
+                                                    </Tooltip>
+
+                                                    <Tooltip title={choir.isActive ? 'Administrar usuarios del coro' : 'El coro está inactivo'}>
+                                                        <span>
+                                                            <Button
+                                                                size="small"
+                                                                variant="outlined"
+                                                                startIcon={<PeopleRoundedIcon />}
+                                                                disabled={!choir.isActive}
+                                                                onClick={() => handleManageUsers(choir)}
+                                                                sx={{
+                                                                    minWidth: 108,
+                                                                    borderRadius: 1.5,
+                                                                    fontWeight: 950,
+                                                                    whiteSpace: 'nowrap',
+                                                                }}
+                                                            >
+                                                                Usuarios
+                                                            </Button>
                                                         </span>
                                                     </Tooltip>
 

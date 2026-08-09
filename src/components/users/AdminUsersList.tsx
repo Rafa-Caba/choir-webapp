@@ -23,6 +23,7 @@ import {
     Typography,
 } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import LockResetRoundedIcon from '@mui/icons-material/LockResetRounded';
@@ -41,6 +42,13 @@ interface SectionHeaderProps {
     readonly subtitle: string;
     readonly icon: ReactNode;
     readonly action?: ReactNode;
+}
+
+interface AdminUsersListProps {
+    readonly basePath?: string;
+    readonly title?: string;
+    readonly contextLabel?: string;
+    readonly backPath?: string;
 }
 
 const getRolePresentation = (role: UserRole) => {
@@ -107,7 +115,12 @@ const SectionHeader = ({ title, subtitle, icon, action }: SectionHeaderProps) =>
     </Paper>
 );
 
-export const AdminUsersList = () => {
+export const AdminUsersList = ({
+    basePath = '/admin/users',
+    title = 'Gestión de Usuarios',
+    contextLabel = 'el coro activo',
+    backPath,
+}: AdminUsersListProps) => {
     const { user: currentUser } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [temporaryPassword, setTemporaryPassword] = useState('');
@@ -236,13 +249,32 @@ export const AdminUsersList = () => {
     return (
         <Box component="section" sx={{ width: '100%', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
             <SectionHeader
-                title="Gestión de Usuarios"
-                subtitle={`${totalUsers} usuario${totalUsers === 1 ? '' : 's'} en el coro activo.`}
+                title={title}
+                subtitle={`${totalUsers} usuario${totalUsers === 1 ? '' : 's'} en ${contextLabel}.`}
                 icon={<PeopleRoundedIcon />}
                 action={(
-                    <Button component={RouterLink} to="/admin/users/new" variant="contained" startIcon={<AddRoundedIcon />} sx={{ borderRadius: 1.5, fontWeight: 950 }}>
-                        Nuevo usuario
-                    </Button>
+                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+                        {backPath && (
+                            <Button
+                                component={RouterLink}
+                                to={backPath}
+                                variant="outlined"
+                                startIcon={<ArrowBackRoundedIcon />}
+                                sx={{ borderRadius: 1.5, fontWeight: 950 }}
+                            >
+                                Volver a coros
+                            </Button>
+                        )}
+                        <Button
+                            component={RouterLink}
+                            to={`${basePath}/new`}
+                            variant="contained"
+                            startIcon={<AddRoundedIcon />}
+                            sx={{ borderRadius: 1.5, fontWeight: 950 }}
+                        >
+                            Nuevo usuario
+                        </Button>
+                    </Box>
                 )}
             />
 
@@ -311,7 +343,7 @@ export const AdminUsersList = () => {
                                                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
                                                     <Tooltip title="Editar">
                                                         <span>
-                                                            <IconButton component={RouterLink} to={`/admin/users/edit/${userItem.id}`} disabled={busy} aria-label={`Editar ${userItem.name}`}>
+                                                            <IconButton component={RouterLink} to={`${basePath}/edit/${userItem.id}`} disabled={busy} aria-label={`Editar ${userItem.name}`}>
                                                                 <EditRoundedIcon />
                                                             </IconButton>
                                                         </span>
