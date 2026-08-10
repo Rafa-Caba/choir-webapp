@@ -706,7 +706,7 @@ const PublicLayout = () => {
                                         alt={leftMenuImage.title || 'Imagen lateral izquierda'}
                                         sx={{
                                             width: '100%',
-                                            maxHeight: 110,
+                                            maxHeight: '100%',
                                             objectFit: 'cover',
                                             display: 'block',
                                             borderRadius: 1,
@@ -788,7 +788,7 @@ const PublicLayout = () => {
                                         alt={rightMenuImage.title || 'Imagen lateral derecha'}
                                         sx={{
                                             width: '100%',
-                                            maxHeight: 110,
+                                            maxHeight: '100%',
                                             objectFit: 'cover',
                                             display: 'block',
                                             borderRadius: 1,
