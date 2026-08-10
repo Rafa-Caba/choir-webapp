@@ -21,7 +21,7 @@ export const TiptapEditor = ({ content, onChange }: Props) => {
         content: safeContent,
         editorProps: {
             attributes: {
-                class: 'editor',
+                class: 'tiptap-editor-content',
             },
         },
         onUpdate: ({ editor: updatedEditor }) => {
@@ -196,10 +196,16 @@ export const TiptapEditor = ({ content, onChange }: Props) => {
                     '& .ProseMirror': {
                         minHeight: 220,
                         outline: 'none',
+                        textAlign: 'left',
+                        lineHeight: 1.45,
                     },
                     '& .ProseMirror p': {
-                        marginTop: 0,
-                        marginBottom: '0.75rem',
+                        m: 0,
+                        p: 0,
+                        lineHeight: 'inherit',
+                    },
+                    '& .ProseMirror p + p': {
+                        mt: 0,
                     },
                 }}
             >

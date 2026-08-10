@@ -28,6 +28,8 @@
     "src/users/temporaryPassword.ts",
     "src/storage/appStorage.ts",
     "src/storage/chatStorage.ts",
+    "src/storage/themePreferenceStorage.ts",
+    "src/types/theme.ts",
     "src/types/chat.ts",
     "src/types/json.ts",
     "src/services/admin/chatDtos.ts",

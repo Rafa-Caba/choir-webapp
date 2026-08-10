@@ -434,6 +434,8 @@ export const TiptapChatEditor = forwardRef<TiptapChatEditorHandle, TiptapChatEdi
                         },
                         '& .tiptap-chat-editor-content p': {
                             m: 0,
+                            p: 0,
+                            lineHeight: 'inherit',
                         },
                         '& .tiptap-chat-editor-content h1': {
                             m: 0,

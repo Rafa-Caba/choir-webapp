@@ -17,6 +17,7 @@ export const customExtensions = [
     Underline,
     TextAlign.configure({
         types: ['heading', 'paragraph'],
+        defaultAlignment: 'left',
     }),
     Heading,
     ListItem,

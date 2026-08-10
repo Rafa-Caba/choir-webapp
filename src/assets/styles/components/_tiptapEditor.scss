@@ -48,7 +48,6 @@
     u,
     li {
         color: var(--color-text) !important;
-        text-align: left !important;
     }
 
     p {
@@ -93,4 +92,26 @@
         pointer-events: none;
         opacity: 0.82;
     }
+}
+
+.tiptap-editor-content,
+.tiptap-viewer .ProseMirror {
+    text-align: left;
+    line-height: 1.45;
+}
+
+.tiptap-editor-content p,
+.tiptap-viewer .ProseMirror p {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: inherit;
+}
+
+.tiptap-editor-content h1,
+.tiptap-editor-content h2,
+.tiptap-editor-content h3,
+.tiptap-viewer .ProseMirror h1,
+.tiptap-viewer .ProseMirror h2,
+.tiptap-viewer .ProseMirror h3 {
+    padding: 0 !important;
 }

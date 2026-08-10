@@ -55,6 +55,14 @@ import type {
 import type { Choir } from '../types/choir';
 import { AuthContext, type AuthContextValue } from './AuthContext';
 import { applyThemeToDocument } from '../utils/applyThemeToDocument';
+import { getThemeById } from '../services/admin/theme';
+import {
+    activateThemePreference,
+    clearActiveThemePreference,
+    readThemePreference,
+    removeThemePreference,
+    writeThemePreference,
+} from '../storage/themePreferenceStorage';
 import { getAuthErrorMessage } from '../auth/authErrorMessages';
 import { applyNeutralThemeToDocument } from '../utils/documentBranding';
 
@@ -162,6 +170,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         clearPrivateBrowserCaches();
         clearAuthSession();
         resetAuthenticatedStores();
+        clearActiveThemePreference();
         applyNeutralThemeToDocument();
         clearSelection();
         accessTokenRef.current = null;
@@ -327,12 +336,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         void restoreSession();
     }, [restoreSession]);
 
-    useEffect(() => {
-        if (user?.themeId && typeof user.themeId === 'object') {
-            applyThemeToDocument(user.themeId);
-        }
-    }, [user]);
-
     const loginTenant = useCallback(async (
         payload: TenantLoginPayload,
     ): Promise<AuthSessionResponse> => {
@@ -457,6 +460,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
 
         returnTargetToPlatform();
+        clearActiveThemePreference();
+        applyNeutralThemeToDocument();
         accessModeRef.current = 'platform';
         writeAccessMode('platform');
         setAccessMode('platform');
@@ -491,6 +496,68 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const resolvedViewMode: PlatformViewMode = user?.role === 'SUPER_ADMIN'
         ? viewMode
         : 'tenant';
+
+    useEffect(() => {
+        if (!user?.id || !effectiveChoirId || !hasTenantContext) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const applyResolvedTheme = async (): Promise<void> => {
+            if (user.themeId === undefined) {
+                const cachedTheme = activateThemePreference(effectiveChoirId, user.id);
+
+                if (cachedTheme) {
+                    applyThemeToDocument(cachedTheme);
+                }
+                return;
+            }
+
+            if (user.themeId === null) {
+                removeThemePreference(effectiveChoirId, user.id);
+                clearActiveThemePreference();
+                applyNeutralThemeToDocument();
+                return;
+            }
+
+            if (typeof user.themeId === 'object') {
+                writeThemePreference(effectiveChoirId, user.id, user.themeId);
+                applyThemeToDocument(user.themeId);
+                return;
+            }
+
+            const cachedTheme = readThemePreference(effectiveChoirId, user.id);
+
+            if (cachedTheme?.id === user.themeId) {
+                writeThemePreference(effectiveChoirId, user.id, cachedTheme);
+                applyThemeToDocument(cachedTheme);
+                return;
+            }
+
+            try {
+                const resolvedTheme = await getThemeById(user.themeId);
+
+                if (cancelled) {
+                    return;
+                }
+
+                writeThemePreference(effectiveChoirId, user.id, resolvedTheme);
+                applyThemeToDocument(resolvedTheme);
+            } catch {
+                if (cachedTheme && !cancelled) {
+                    writeThemePreference(effectiveChoirId, user.id, cachedTheme);
+                    applyThemeToDocument(cachedTheme);
+                }
+            }
+        };
+
+        void applyResolvedTheme();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [effectiveChoirId, hasTenantContext, user]);
 
     const value = useMemo<AuthContextValue>(() => ({
         accessToken,

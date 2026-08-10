@@ -27,6 +27,7 @@ import { useThemeStore } from '../../store/admin/useThemeStore';
 import { useUsersStore } from '../../store/admin/useUsersStore';
 import { ThemeSelectorModal } from './ThemeSelectorModal';
 import { applyThemeToDocument } from '../../utils/applyThemeToDocument';
+import { writeThemePreference } from '../../storage/themePreferenceStorage';
 import type { Theme } from '../../types/theme';
 import { useAuth } from '../../context/AuthContext';
 
@@ -38,6 +39,7 @@ export const UserMenu = () => {
         logout,
         isSuperAdmin,
         hasTenantContext,
+        effectiveChoirId,
         returnToPlatform,
     } = useAuth();
 
@@ -102,6 +104,10 @@ export const UserMenu = () => {
             updateUser(updatedUser);
 
             applyThemeToDocument(theme);
+
+            if (effectiveChoirId) {
+                writeThemePreference(effectiveChoirId, user.id, theme);
+            }
 
             setShowModal(false);
             Swal.fire('¡Tema aplicado!', 'Se ha guardado tu preferencia.', 'success');

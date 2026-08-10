@@ -7,6 +7,7 @@ import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Heading from '@tiptap/extension-heading';
+import TextAlign from '@tiptap/extension-text-align';
 
 interface TiptapChatViewerProps {
     content: JSONContent;
@@ -20,6 +21,10 @@ export const TiptapChatViewer = ({ content }: TiptapChatViewerProps) => {
             StarterKit.configure({ heading: false }),
             Heading.configure({ levels: [1, 2] }),
             Underline,
+            TextAlign.configure({
+                types: ['heading', 'paragraph'],
+                defaultAlignment: 'left',
+            }),
         ],
         editorProps: {
             attributes: {
@@ -56,9 +61,11 @@ export const TiptapChatViewer = ({ content }: TiptapChatViewerProps) => {
                     whiteSpace: 'normal',
                     overflowWrap: 'break-word',
                     wordBreak: 'normal',
+                    textAlign: 'left',
                 },
                 '& .ProseMirror p': {
                     m: 0,
+                    p: 0,
                     width: 'max-content',
                     maxWidth: '100%',
                     whiteSpace: 'normal',

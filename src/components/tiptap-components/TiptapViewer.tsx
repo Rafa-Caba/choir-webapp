@@ -39,10 +39,13 @@ export const TiptapViewer = ({ content }: Props) => {
                 color: 'var(--color-text)',
                 '& .ProseMirror': {
                     outline: 'none',
+                    textAlign: 'left',
+                    lineHeight: 1.45,
                 },
-                '& p': {
-                    marginTop: 0,
-                    marginBottom: '0.75rem',
+                '& .ProseMirror p': {
+                    m: 0,
+                    p: 0,
+                    lineHeight: 'inherit',
                 },
             }}
         >
