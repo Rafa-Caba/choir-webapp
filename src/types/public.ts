@@ -1,6 +1,7 @@
 // src/types/public.ts
 
 import type { AppSettings } from './settings';
+import type { Theme } from './theme';
 
 export interface PublicChoirMetadata {
     readonly name: string;
@@ -12,6 +13,7 @@ export interface PublicChoirMetadata {
 export interface PublicSettingsResponse {
     readonly choir: PublicChoirMetadata;
     readonly settings: AppSettings;
+    readonly activeTheme: Theme;
 }
 
 export type PublicPageStatus = 'loading' | 'ready' | 'not-found' | 'unavailable' | 'error';

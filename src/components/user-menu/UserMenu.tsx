@@ -1,6 +1,6 @@
 // src/components/user-menu/UserMenu.tsx
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
@@ -26,8 +26,19 @@ import ScienceRoundedIcon from '@mui/icons-material/ScienceRounded';
 import { useThemeStore } from '../../store/admin/useThemeStore';
 import { useUsersStore } from '../../store/admin/useUsersStore';
 import { ThemeSelectorModal } from './ThemeSelectorModal';
-import { applyThemeToDocument } from '../../utils/applyThemeToDocument';
-import { writeThemePreference } from '../../storage/themePreferenceStorage';
+import { getAdminSettings } from '../../services/admin/settings';
+import {
+    readThemePreference,
+    removeThemePreference,
+    writeThemePreference,
+} from '../../storage/themePreferenceStorage';
+import { readChoirTheme, writeChoirTheme } from '../../storage/choirThemeStorage';
+import { writeActiveAdminThemeSnapshot } from '../../storage/adminThemeRuntimeStorage';
+import {
+    applyChoirThemeToDocument,
+    applyDefaultChoirThemeToDocument,
+} from '../../utils/choirThemeDocument';
+import { resolvePersonalThemeId } from '../../theme/themeHierarchy';
 import type { Theme } from '../../types/theme';
 import { useAuth } from '../../context/AuthContext';
 
@@ -35,27 +46,47 @@ export const UserMenu = () => {
     const navigate = useNavigate();
     const {
         user,
-        updateUser,
+        choir,
+        targetChoir,
+        effectiveChoirId,
         logout,
         isSuperAdmin,
         hasTenantContext,
-        effectiveChoirId,
         returnToPlatform,
+        updateUser,
     } = useAuth();
 
     const { updateMyTheme } = useUsersStore();
     const { themes, fetchThemes } = useThemeStore();
+    const effectiveChoirCode = targetChoir?.code ?? choir?.code ?? user?.choirCode ?? '';
+    const personalThemeId = resolvePersonalThemeId(user?.themeId);
+    const cachedGlobalTheme = useMemo(
+        () => effectiveChoirCode ? readChoirTheme(effectiveChoirCode) : null,
+        [effectiveChoirCode],
+    );
 
     const [showModal, setShowModal] = useState(false);
     const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null);
+    const [globalThemeName, setGlobalThemeName] = useState(cachedGlobalTheme?.name ?? '');
 
     const menuOpen = Boolean(anchorElement);
+    const canUsePersonalTheme = Boolean(
+        user
+        && user.role !== 'SUPER_ADMIN'
+        && hasTenantContext
+        && effectiveChoirId
+        && effectiveChoirCode,
+    );
 
     useEffect(() => {
-        if (hasTenantContext) {
+        if (canUsePersonalTheme) {
             void fetchThemes();
         }
-    }, [fetchThemes, hasTenantContext]);
+    }, [canUsePersonalTheme, fetchThemes]);
+
+    useEffect(() => {
+        setGlobalThemeName(cachedGlobalTheme?.name ?? '');
+    }, [cachedGlobalTheme?.name]);
 
     const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorElement(event.currentTarget);
@@ -78,44 +109,115 @@ export const UserMenu = () => {
 
     const handleLogout = () => {
         handleCloseMenu();
-        logout();
-        navigate('/auth/login');
+        void logout();
     };
 
-    const handleOpenThemeModal = () => {
+    const handleOpenThemeModal = async (): Promise<void> => {
         handleCloseMenu();
 
-        if (!user?.id) {
-            Swal.fire('Aviso', 'Usuario no disponible.', 'warning');
+        if (!canUsePersonalTheme) {
+            Swal.fire(
+                'Aviso',
+                'El tema personal está disponible únicamente para usuarios pertenecientes a un coro.',
+                'info',
+            );
             return;
+        }
+
+        try {
+            const settings = await getAdminSettings();
+
+            if (settings.activeTheme) {
+                writeChoirTheme(effectiveChoirCode, settings.activeTheme);
+                setGlobalThemeName(settings.activeTheme.name);
+            }
+        } catch {
+            // The modal can still use the cached global theme and the available theme list.
         }
 
         setShowModal(true);
     };
 
-    const handleSelectTheme = async (theme: Theme) => {
-        try {
-            if (!theme.id || !user?.id) {
-                return;
-            }
+    const handleSelectTheme = async (theme: Theme): Promise<void> => {
+        if (!user?.id || !effectiveChoirId || !effectiveChoirCode || isSuperAdmin) {
+            return;
+        }
 
+        try {
             const updatedUser = await updateMyTheme(theme.id);
 
             updateUser(updatedUser);
+            writeThemePreference(effectiveChoirId, user.id, theme);
+            applyChoirThemeToDocument(theme, effectiveChoirCode);
+            writeActiveAdminThemeSnapshot({
+                choirCode: effectiveChoirCode,
+                userId: user.id,
+                source: 'personal',
+                theme,
+            });
 
-            applyThemeToDocument(theme);
+            setShowModal(false);
+            Swal.fire(
+                '¡Tema personal aplicado!',
+                'Este tema se usará en tu consola Admin. La página pública conserva el tema global del coro.',
+                'success',
+            );
+        } catch (error) {
+            console.error('Error applying personal theme:', error);
+            Swal.fire('Error', 'No se pudo guardar tu tema personal.', 'error');
+        }
+    };
 
-            if (effectiveChoirId) {
-                writeThemePreference(effectiveChoirId, user.id, theme);
+    const handleUseGlobalTheme = async (): Promise<void> => {
+        if (!user?.id || !effectiveChoirId || !effectiveChoirCode || isSuperAdmin) {
+            return;
+        }
+
+        try {
+            const updatedUser = await updateMyTheme(null);
+            updateUser(updatedUser);
+            removeThemePreference(effectiveChoirId, user.id);
+
+            let globalTheme = readChoirTheme(effectiveChoirCode);
+
+            if (!globalTheme) {
+                const settings = await getAdminSettings();
+                globalTheme = settings.activeTheme;
+
+                if (globalTheme) {
+                    writeChoirTheme(effectiveChoirCode, globalTheme);
+                }
+            }
+
+            if (globalTheme) {
+                applyChoirThemeToDocument(globalTheme, effectiveChoirCode);
+                writeActiveAdminThemeSnapshot({
+                    choirCode: effectiveChoirCode,
+                    userId: null,
+                    source: 'global',
+                    theme: globalTheme,
+                });
+                setGlobalThemeName(globalTheme.name);
+            } else {
+                applyDefaultChoirThemeToDocument(effectiveChoirCode);
             }
 
             setShowModal(false);
-            Swal.fire('¡Tema aplicado!', 'Se ha guardado tu preferencia.', 'success');
+            Swal.fire(
+                'Tema personal desactivado',
+                'Tu consola volverá a seguir automáticamente el tema global del coro.',
+                'success',
+            );
         } catch (error) {
-            console.error('Error applying theme:', error);
-            Swal.fire('Error', 'No se pudo guardar el tema. Intenta más tarde.', 'error');
+            console.error('Error restoring global choir theme:', error);
+            Swal.fire('Error', 'No se pudo restaurar el tema global del coro.', 'error');
         }
     };
+
+    const selectedPersonalTheme = personalThemeId
+        ? themes.find((theme) => theme.id === personalThemeId)
+            ?? (effectiveChoirId && user?.id ? readThemePreference(effectiveChoirId, user.id) : null)
+        : null;
 
     return (
         <>
@@ -126,10 +228,7 @@ export const UserMenu = () => {
                     aria-haspopup="true"
                     aria-expanded={menuOpen ? 'true' : undefined}
                     onClick={handleOpenMenu}
-                    sx={{
-                        p: 0,
-                        // border: '2px solid rgba(255, 255, 255, 0.35)',
-                    }}
+                    sx={{ p: 0 }}
                 >
                     <Avatar
                         src={user?.imageUrl || '/default-avatar.png'}
@@ -207,12 +306,15 @@ export const UserMenu = () => {
                     <ListItemText primary="Ver mi perfil" />
                 </MenuItem>
 
-                {hasTenantContext && (
-                    <MenuItem onClick={handleOpenThemeModal}>
+                {canUsePersonalTheme && (
+                    <MenuItem onClick={() => void handleOpenThemeModal()}>
                         <ListItemIcon>
                             <PaletteRoundedIcon fontSize="small" sx={{ color: 'var(--color-primary)' }} />
                         </ListItemIcon>
-                        <ListItemText primary="Cambiar tema del admin" />
+                        <ListItemText
+                            primary="Tema personal"
+                            secondary={selectedPersonalTheme?.name || 'Usando tema global del coro'}
+                        />
                     </MenuItem>
                 )}
 
@@ -249,6 +351,9 @@ export const UserMenu = () => {
                 show={showModal}
                 onClose={() => setShowModal(false)}
                 themes={themes}
+                selectedThemeId={personalThemeId}
+                globalThemeName={globalThemeName}
+                onUseGlobalTheme={handleUseGlobalTheme}
                 onSelect={handleSelectTheme}
             />
         </>

@@ -21,6 +21,7 @@ import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
 
 import { useThemeStore } from '../../store/admin/useThemeStore';
+import { useAdminSettingsStore } from '../../store/admin/useSettingsStore';
 import type { CreateThemePayload } from '../../types/theme';
 import { applyThemeToDocument } from '../../utils/applyThemeToDocument';
 
@@ -135,6 +136,7 @@ export const AdminEditTheme = () => {
     const navigate = useNavigate();
 
     const { getTheme, editTheme, loading } = useThemeStore();
+    const { fetchSettings } = useAdminSettingsStore();
 
     const [formData, setFormData] = useState<CreateThemePayload | null>(null);
 
@@ -249,6 +251,7 @@ export const AdminEditTheme = () => {
 
         try {
             await editTheme(id, formData);
+            await fetchSettings();
             Swal.fire('Actualizado', 'Tema actualizado correctamente', 'success');
             navigate('/admin/themes');
         } catch (error) {

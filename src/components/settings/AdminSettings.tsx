@@ -16,6 +16,7 @@ import {
     Button,
     CircularProgress,
     Divider,
+    MenuItem,
     Paper,
     TextField,
     Typography,
@@ -24,15 +25,22 @@ import {
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
+import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
 import { useAdminSettingsStore } from '../../store/admin/useSettingsStore';
+import { useThemeStore } from '../../store/admin/useThemeStore';
+import { useAuth } from '../../context/AuthContext';
 import type { HomeLegends, SocialLinks, UpdateSettingsPayload } from '../../types/settings';
 
 import { TiptapEditor } from '../tiptap-components/TiptapEditor';
 import { parseText } from '../../utils/handleTextTipTap';
 import { emptyEditorContent } from '../../utils/editorDefaults';
 import type { TipTapContent } from '../../types/announcement';
+import { writeChoirTheme } from '../../storage/choirThemeStorage';
+import { writeActiveAdminThemeSnapshot } from '../../storage/adminThemeRuntimeStorage';
+import { applyChoirThemeToDocument } from '../../utils/choirThemeDocument';
+import { resolvePersonalThemeId } from '../../theme/themeHierarchy';
 
 interface SettingsFormData {
     webTitle: string;
@@ -107,7 +115,15 @@ export const AdminSettings = () => {
         loading,
         fetchSettings,
         updateSettings,
+        updateActiveTheme,
     } = useAdminSettingsStore();
+    const { themes, fetchThemes } = useThemeStore();
+    const { user, choir, targetChoir, isSuperAdmin } = useAuth();
+    const effectiveChoirCode = targetChoir?.code ?? choir?.code ?? user?.choirCode ?? '';
+    const personalThemeId = resolvePersonalThemeId(user?.themeId);
+    const personalThemeName = personalThemeId
+        ? themes.find((theme) => theme.id === personalThemeId)?.name ?? ''
+        : '';
 
     const [formData, setFormData] = useState<SettingsFormData>(defaultFormData);
     const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -117,7 +133,8 @@ export const AdminSettings = () => {
 
     useEffect(() => {
         void fetchSettings();
-    }, [fetchSettings]);
+        void fetchThemes();
+    }, [fetchSettings, fetchThemes]);
 
     useEffect(() => {
         if (settings) {
@@ -250,6 +267,46 @@ export const AdminSettings = () => {
 
         setLogoFile(file);
         setPreviewUrl(URL.createObjectURL(file));
+    };
+
+    const handleGlobalThemeChange = async (themeId: string): Promise<void> => {
+        if (!themeId || !effectiveChoirCode) {
+            return;
+        }
+
+        try {
+            const updatedSettings = await updateActiveTheme(themeId);
+            const globalTheme = updatedSettings.activeTheme;
+
+            if (globalTheme) {
+                writeChoirTheme(effectiveChoirCode, globalTheme);
+
+                const personalOverrideIsActive = !isSuperAdmin && Boolean(personalThemeId);
+
+                if (!personalOverrideIsActive) {
+                    applyChoirThemeToDocument(globalTheme, effectiveChoirCode);
+                    writeActiveAdminThemeSnapshot({
+                        choirCode: effectiveChoirCode,
+                        userId: null,
+                        source: 'global',
+                        theme: globalTheme,
+                    });
+                }
+            }
+
+            Swal.fire({
+                icon: 'success',
+                title: '¡Tema global actualizado!',
+                text: personalThemeId && !isSuperAdmin
+                    ? 'La página pública y los usuarios sin tema personal usarán este tema. Tu consola conserva tu tema personal.'
+                    : 'El tema se aplicó al coro y a su página pública.',
+                timer: 2200,
+                showConfirmButton: false,
+            });
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Error', 'No se pudo cambiar el tema global del coro.', 'error');
+        }
     };
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -553,6 +610,63 @@ export const AdminSettings = () => {
                                 multiline
                                 minRows={2}
                             />
+
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 1.5,
+                                    borderRadius: 1.5,
+                                    backgroundColor:
+                                        'color-mix(in srgb, var(--color-card) 90%, var(--color-primary) 10%)',
+                                    border:
+                                        '1px solid color-mix(in srgb, var(--color-border) 34%, transparent)',
+                                }}
+                            >
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        mb: 1.25,
+                                    }}
+                                >
+                                    <PaletteRoundedIcon sx={{ color: 'var(--color-primary)' }} />
+                                    <Box>
+                                        <Typography sx={{ fontWeight: 950 }}>
+                                            Tema global del coro
+                                        </Typography>
+                                        <Typography
+                                            sx={{
+                                                color: 'var(--color-secondary-text)',
+                                                fontWeight: 700,
+                                                fontSize: '0.84rem',
+                                            }}
+                                        >
+                                            Controla la página pública y es el tema predeterminado del Admin.
+                                        </Typography>
+                                    </Box>
+                                </Box>
+
+                                <TextField
+                                    select
+                                    fullWidth
+                                    label="Tema global"
+                                    value={settings?.activeThemeId ?? ''}
+                                    onChange={(event) => void handleGlobalThemeChange(event.target.value)}
+                                    disabled={loading || themes.length === 0}
+                                    helperText={
+                                        personalThemeId && !isSuperAdmin
+                                            ? `Tu consola mantiene tu tema personal${personalThemeName ? ` (${personalThemeName})` : ''}.`
+                                            : 'Este tema también se usa en tu consola mientras no exista un tema personal.'
+                                    }
+                                >
+                                    {themes.map((theme) => (
+                                        <MenuItem key={theme.id} value={theme.id}>
+                                            {theme.name} · {theme.isDark ? 'Oscuro' : 'Claro'}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            </Paper>
 
                             <Box>
                                 <Typography sx={{ mb: 1, fontWeight: 950 }}>

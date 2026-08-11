@@ -138,6 +138,54 @@ if (!paginationTypeContents.includes('[10, 50, 100]')) {
     failures.push('src/types/pagination.ts: page-size options must remain 10, 50, and 100');
 }
 
+
+const publicThemeProviderContents = readFileSync(
+    join(root, 'src/context/PublicGlobalProvider.tsx'),
+    'utf8',
+);
+if (!publicThemeProviderContents.includes('activeTheme')) {
+    failures.push('PublicGlobalProvider.tsx: public pages must consume the choir activeTheme');
+}
+if (publicThemeProviderContents.includes("theme.name === 'Default'") || publicThemeProviderContents.includes('themes[0]')) {
+    failures.push('PublicGlobalProvider.tsx: public theme selection must not use heuristic or first-theme fallbacks');
+}
+
+const adminSettingsContents = readFileSync(
+    join(root, 'src/components/settings/AdminSettings.tsx'),
+    'utf8',
+);
+if (!adminSettingsContents.includes('activeThemeId') || !adminSettingsContents.includes('updateActiveTheme')) {
+    failures.push('AdminSettings.tsx: choir settings must expose the global active theme selector');
+}
+
+const userMenuContents = readFileSync(
+    join(root, 'src/components/user-menu/UserMenu.tsx'),
+    'utf8',
+);
+if (!userMenuContents.includes('updateMyTheme(theme.id)')) {
+    failures.push('UserMenu.tsx: personal admin theme must persist through /users/me/theme');
+}
+if (!userMenuContents.includes('updateMyTheme(null)')) {
+    failures.push('UserMenu.tsx: users must be able to clear the personal theme and follow the choir global theme');
+}
+if (!userMenuContents.includes("user.role !== 'SUPER_ADMIN'")) {
+    failures.push('UserMenu.tsx: platform SUPER_ADMIN must not use a personal tenant theme override');
+}
+
+const authProviderContents = readFileSync(
+    join(root, 'src/context/AuthProvider.tsx'),
+    'utf8',
+);
+if (!authProviderContents.includes("location.pathname.startsWith('/admin')")) {
+    failures.push('AuthProvider.tsx: personal theme overrides must be scoped to private admin routes');
+}
+if (!authProviderContents.includes('resolvePersonalThemeId(user.themeId)')) {
+    failures.push('AuthProvider.tsx: admin theme hierarchy must inspect User.themeId');
+}
+if (!authProviderContents.includes('getAdminSettings()')) {
+    failures.push('AuthProvider.tsx: admin theme hierarchy must fall back to Settings.activeThemeId');
+}
+
 const targetStorePath = join(root, 'src/store/platform/useTargetChoirStore.ts');
 const targetStoreContents = readFileSync(targetStorePath, 'utf8');
 

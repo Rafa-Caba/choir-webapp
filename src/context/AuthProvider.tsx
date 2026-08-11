@@ -3,12 +3,13 @@
 import {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
     type ReactNode,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     registerAuthBridge,
     type SessionExpiryReason,
@@ -54,15 +55,24 @@ import type {
 } from '../types/auth';
 import type { Choir } from '../types/choir';
 import { AuthContext, type AuthContextValue } from './AuthContext';
-import { applyThemeToDocument } from '../utils/applyThemeToDocument';
 import { getThemeById } from '../services/admin/theme';
+import { getAdminSettings } from '../services/admin/settings';
 import {
-    activateThemePreference,
-    clearActiveThemePreference,
     readThemePreference,
     removeThemePreference,
     writeThemePreference,
 } from '../storage/themePreferenceStorage';
+import {
+    clearActiveAdminThemeSnapshot,
+    writeActiveAdminThemeSnapshot,
+    type AdminThemeSource,
+} from '../storage/adminThemeRuntimeStorage';
+import { readChoirTheme, writeChoirTheme } from '../storage/choirThemeStorage';
+import {
+    applyChoirThemeToDocument,
+    applyDefaultChoirThemeToDocument,
+} from '../utils/choirThemeDocument';
+import { resolvePersonalThemeId } from '../theme/themeHierarchy';
 import { getAuthErrorMessage } from '../auth/authErrorMessages';
 import { applyNeutralThemeToDocument } from '../utils/documentBranding';
 
@@ -91,6 +101,7 @@ const mergeProfile = (
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const initialAccessToken = readAccessToken();
     const initialRefreshToken = readRefreshToken();
 
@@ -168,9 +179,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const clearSessionState = useCallback((redirectToLogin: boolean): void => {
         clearPrivateBrowserCaches();
+        if (user?.role !== 'SUPER_ADMIN' && user?.id && effectiveChoirIdRef.current) {
+            removeThemePreference(effectiveChoirIdRef.current, user.id);
+        }
+
         clearAuthSession();
         resetAuthenticatedStores();
-        clearActiveThemePreference();
+        clearActiveAdminThemeSnapshot();
         applyNeutralThemeToDocument();
         clearSelection();
         accessTokenRef.current = null;
@@ -188,7 +203,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (redirectToLogin) {
             navigate('/auth/login', { replace: true });
         }
-    }, [clearPrivateBrowserCaches, clearSelection, navigate]);
+    }, [clearPrivateBrowserCaches, clearSelection, navigate, user]);
 
     const expireSession = useCallback(async (
         reason?: SessionExpiryReason,
@@ -218,6 +233,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
             const profile = await getUserProfile();
             const mergedUser = mergeProfile(authenticatedUser, profile);
+
+            if (mergedUser.role !== 'SUPER_ADMIN' && mergedUser.choirId) {
+                const personalThemeId = resolvePersonalThemeId(mergedUser.themeId);
+
+                if (personalThemeId) {
+                    const cachedPersonalTheme = readThemePreference(
+                        mergedUser.choirId,
+                        mergedUser.id,
+                    );
+
+                    if (cachedPersonalTheme?.id !== personalThemeId) {
+                        try {
+                            const personalTheme = await getThemeById(personalThemeId);
+                            writeThemePreference(mergedUser.choirId, mergedUser.id, personalTheme);
+                        } catch {
+                            removeThemePreference(mergedUser.choirId, mergedUser.id);
+                        }
+                    }
+                } else {
+                    removeThemePreference(mergedUser.choirId, mergedUser.id);
+                }
+            }
+
             setUser(mergedUser);
             persistSessionUser(mergedUser);
             return mergedUser;
@@ -460,7 +498,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
 
         returnTargetToPlatform();
-        clearActiveThemePreference();
+        clearActiveAdminThemeSnapshot();
         applyNeutralThemeToDocument();
         accessModeRef.current = 'platform';
         writeAccessMode('platform');
@@ -497,67 +535,130 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         ? viewMode
         : 'tenant';
 
-    useEffect(() => {
-        if (!user?.id || !effectiveChoirId || !hasTenantContext) {
+    const effectiveChoirCode = user?.role === 'SUPER_ADMIN'
+        ? targetChoir?.code ?? ''
+        : choir?.code ?? user?.choirCode ?? '';
+
+    useLayoutEffect(() => {
+        if (!location.pathname.startsWith('/admin')) {
+            return;
+        }
+
+        if (!user?.id || !effectiveChoirId || !effectiveChoirCode || !hasTenantContext) {
+            if (user?.role === 'SUPER_ADMIN' && !hasTenantContext) {
+                clearActiveAdminThemeSnapshot();
+                applyNeutralThemeToDocument();
+            }
             return;
         }
 
         let cancelled = false;
 
-        const applyResolvedTheme = async (): Promise<void> => {
-            if (user.themeId === undefined) {
-                const cachedTheme = activateThemePreference(effectiveChoirId, user.id);
-
-                if (cachedTheme) {
-                    applyThemeToDocument(cachedTheme);
-                }
+        const applyAdminTheme = (
+            theme: Awaited<ReturnType<typeof getThemeById>>,
+            source: AdminThemeSource,
+        ): void => {
+            if (cancelled) {
                 return;
             }
 
-            if (user.themeId === null) {
-                removeThemePreference(effectiveChoirId, user.id);
-                clearActiveThemePreference();
-                applyNeutralThemeToDocument();
-                return;
-            }
+            applyChoirThemeToDocument(theme, effectiveChoirCode);
+            writeActiveAdminThemeSnapshot({
+                choirCode: effectiveChoirCode,
+                userId: source === 'personal' ? user.id : null,
+                source,
+                theme,
+            });
+        };
 
-            if (typeof user.themeId === 'object') {
-                writeThemePreference(effectiveChoirId, user.id, user.themeId);
-                applyThemeToDocument(user.themeId);
-                return;
-            }
+        const applyGlobalTheme = async (): Promise<void> => {
+            const cachedGlobalTheme = readChoirTheme(effectiveChoirCode);
 
-            const cachedTheme = readThemePreference(effectiveChoirId, user.id);
-
-            if (cachedTheme?.id === user.themeId) {
-                writeThemePreference(effectiveChoirId, user.id, cachedTheme);
-                applyThemeToDocument(cachedTheme);
-                return;
+            if (cachedGlobalTheme) {
+                applyAdminTheme(cachedGlobalTheme, 'global');
+            } else {
+                applyDefaultChoirThemeToDocument(effectiveChoirCode);
             }
 
             try {
-                const resolvedTheme = await getThemeById(user.themeId);
+                const settings = await getAdminSettings();
+
+                if (cancelled || !settings.activeTheme) {
+                    return;
+                }
+
+                writeChoirTheme(effectiveChoirCode, settings.activeTheme);
+                applyAdminTheme(settings.activeTheme, 'global');
+            } catch {
+                if (!cachedGlobalTheme && !cancelled) {
+                    applyDefaultChoirThemeToDocument(effectiveChoirCode);
+                }
+            }
+        };
+
+        const personalThemeId = user.role === 'SUPER_ADMIN'
+            ? null
+            : resolvePersonalThemeId(user.themeId);
+
+        if (!personalThemeId) {
+            if (user.role !== 'SUPER_ADMIN') {
+                removeThemePreference(effectiveChoirId, user.id);
+            }
+
+            void applyGlobalTheme();
+            return () => {
+                cancelled = true;
+            };
+        }
+
+        const cachedPersonalTheme = readThemePreference(effectiveChoirId, user.id);
+
+        if (cachedPersonalTheme?.id === personalThemeId) {
+            applyAdminTheme(cachedPersonalTheme, 'personal');
+        } else {
+            const cachedGlobalTheme = readChoirTheme(effectiveChoirCode);
+
+            if (cachedGlobalTheme) {
+                applyAdminTheme(cachedGlobalTheme, 'global');
+            } else {
+                applyDefaultChoirThemeToDocument(effectiveChoirCode);
+            }
+        }
+
+        const refreshPersonalTheme = async (): Promise<void> => {
+            try {
+                const resolvedTheme = await getThemeById(personalThemeId);
 
                 if (cancelled) {
                     return;
                 }
 
                 writeThemePreference(effectiveChoirId, user.id, resolvedTheme);
-                applyThemeToDocument(resolvedTheme);
+                applyAdminTheme(resolvedTheme, 'personal');
             } catch {
-                if (cachedTheme && !cancelled) {
-                    writeThemePreference(effectiveChoirId, user.id, cachedTheme);
-                    applyThemeToDocument(cachedTheme);
+                if (cancelled) {
+                    return;
                 }
+
+                removeThemePreference(effectiveChoirId, user.id);
+                await applyGlobalTheme();
             }
         };
 
-        void applyResolvedTheme();
+        void refreshPersonalTheme();
 
         return () => {
             cancelled = true;
         };
-    }, [effectiveChoirId, hasTenantContext, user]);
+    }, [
+        effectiveChoirCode,
+        effectiveChoirId,
+        hasTenantContext,
+        location.pathname,
+        user?.id,
+        user?.role,
+        user?.themeId,
+    ]);
 
     const value = useMemo<AuthContextValue>(() => ({
         accessToken,

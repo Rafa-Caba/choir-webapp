@@ -15,13 +15,19 @@ import { resetPublicStores } from '../store/public/resetPublicStores';
 import { useSettingsStore } from '../store/public/useSettingsStore';
 import { useSongStore } from '../store/public/useSongStore';
 import { useSongTypeStore } from '../store/public/useSongTypeStore';
-import { useThemeStore } from '../store/public/useThemeStore';
 import type { PublicPageStatus } from '../types/public';
 import { normalizeChoirCode } from '../utils/choirCode';
+import { setDocumentBrand } from '../utils/documentBranding';
 import {
-    applyNeutralThemeToDocument,
-    setDocumentBrand,
-} from '../utils/documentBranding';
+    applyChoirThemeToDocument,
+    applyDefaultChoirThemeToDocument,
+    getAppliedChoirThemeCode,
+} from '../utils/choirThemeDocument';
+import {
+    activateCachedChoirTheme,
+    removeChoirTheme,
+    writeChoirTheme,
+} from '../storage/choirThemeStorage';
 import {
     PublicGlobalContext,
     type PublicGlobalContextValue,
@@ -53,34 +59,38 @@ export const PublicGlobalProvider = ({
     const fetchSettings = useSettingsStore((state) => state.fetchSettings);
     const fetchSongs = useSongStore((state) => state.fetchSongs);
     const fetchTypes = useSongTypeStore((state) => state.fetchTypes);
-    const fetchThemes = useThemeStore((state) => state.fetchThemes);
 
     const choir = useSettingsStore((state) => (
         state.loadedChoirCode === normalizedChoirCode ? state.choir : null
+    ));
+    const activeTheme = useSettingsStore((state) => (
+        state.loadedChoirCode === normalizedChoirCode ? state.activeTheme : null
     ));
     const settingsStatus = useSettingsStore((state) => state.status);
     const settingsLoadedChoirCode = useSettingsStore((state) => state.loadedChoirCode);
     const errorCode = useSettingsStore((state) => state.errorCode);
     const errorMessage = useSettingsStore((state) => state.errorMessage);
-    const themes = useThemeStore((state) => (
-        state.loadedChoirCode === normalizedChoirCode ? state.themes : []
-    ));
 
     useLayoutEffect(() => {
         resetPublicStores();
-        applyNeutralThemeToDocument();
         setDocumentBrand('Choirs', null);
+
+        const cachedTheme = activateCachedChoirTheme(normalizedChoirCode);
+
+        if (cachedTheme) {
+            applyChoirThemeToDocument(cachedTheme, normalizedChoirCode);
+        } else if (getAppliedChoirThemeCode() !== normalizedChoirCode) {
+            applyDefaultChoirThemeToDocument(normalizedChoirCode);
+        }
 
         return () => {
             resetPublicStores();
-            applyNeutralThemeToDocument();
             setDocumentBrand('Choirs', null);
         };
     }, [normalizedChoirCode]);
 
     useEffect(() => {
         void fetchSettings(normalizedChoirCode);
-        void fetchThemes(normalizedChoirCode);
         void fetchGallery(normalizedChoirCode);
         void fetchSongs(normalizedChoirCode);
         void fetchTypes(normalizedChoirCode);
@@ -96,30 +106,18 @@ export const PublicGlobalProvider = ({
         fetchPublicInstruments,
         fetchSettings,
         fetchSongs,
-        fetchThemes,
         fetchTypes,
         normalizedChoirCode,
     ]);
 
-    useEffect(() => {
-        const defaultTheme = themes.find((theme) => theme.name === 'Default') ?? themes[0];
-
-        if (!defaultTheme) {
+    useLayoutEffect(() => {
+        if (!activeTheme) {
             return;
         }
 
-        const root = document.documentElement;
-        root.style.setProperty('--color-primary', defaultTheme.primaryColor);
-        root.style.setProperty('--color-accent', defaultTheme.accentColor);
-        root.style.setProperty('--color-background', defaultTheme.backgroundColor);
-        root.style.setProperty('--color-text', defaultTheme.textColor);
-        root.style.setProperty('--color-card', defaultTheme.cardColor);
-        root.style.setProperty('--color-button', defaultTheme.buttonColor);
-        root.style.setProperty('--color-nav', defaultTheme.navColor);
-        root.style.setProperty('--color-button-text', defaultTheme.buttonTextColor);
-        root.style.setProperty('--color-secondary-text', defaultTheme.secondaryTextColor);
-        root.style.setProperty('--color-border', defaultTheme.borderColor);
-    }, [themes]);
+        writeChoirTheme(normalizedChoirCode, activeTheme);
+        applyChoirThemeToDocument(activeTheme, normalizedChoirCode);
+    }, [activeTheme, normalizedChoirCode]);
 
     const status = useMemo<PublicPageStatus>(() => {
         if (settingsLoadedChoirCode !== normalizedChoirCode || settingsStatus === 'idle') {
@@ -135,9 +133,9 @@ export const PublicGlobalProvider = ({
         }
 
         if (
-            settingsStatus === 'error' &&
-            errorCode &&
-            PUBLIC_CHOIR_UNAVAILABLE_CODES.has(errorCode)
+            settingsStatus === 'error'
+            && errorCode
+            && PUBLIC_CHOIR_UNAVAILABLE_CODES.has(errorCode)
         ) {
             return 'unavailable';
         }
@@ -148,6 +146,15 @@ export const PublicGlobalProvider = ({
 
         return 'ready';
     }, [errorCode, normalizedChoirCode, settingsLoadedChoirCode, settingsStatus]);
+
+    useEffect(() => {
+        if (status === 'ready' || status === 'loading') {
+            return;
+        }
+
+        removeChoirTheme(normalizedChoirCode);
+        applyDefaultChoirThemeToDocument(normalizedChoirCode);
+    }, [normalizedChoirCode, status]);
 
     const value = useMemo<PublicGlobalContextValue>(() => ({
         choirCode: normalizedChoirCode,
@@ -163,4 +170,3 @@ export const PublicGlobalProvider = ({
         </PublicGlobalContext.Provider>
     );
 };
-

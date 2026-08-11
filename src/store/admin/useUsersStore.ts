@@ -46,7 +46,7 @@ interface UsersState {
         temporaryPassword?: string,
     ) => Promise<ResetUserPasswordResponse>;
     readonly updateMyProfile: (formData: FormData) => Promise<User>;
-    readonly updateMyTheme: (themeId: string) => Promise<User>;
+    readonly updateMyTheme: (themeId: string | null) => Promise<User>;
     readonly setCurrentPage: (page: number) => void;
     readonly setPageSize: (pageSize: PageSize) => void;
     readonly getUserById: (id: string) => User | undefined;

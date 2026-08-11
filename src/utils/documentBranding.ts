@@ -25,6 +25,9 @@ export const applyNeutralThemeToDocument = (): void => {
     Object.entries(NEUTRAL_THEME_VARIABLES).forEach(([variableName, value]) => {
         root.style.setProperty(variableName, value);
     });
+
+    delete root.dataset.choirThemeCode;
+    delete root.dataset.choirThemeId;
 };
 
 export const setDocumentFavicon = (href: string | null): void => {

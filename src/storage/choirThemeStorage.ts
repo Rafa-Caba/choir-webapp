@@ -1,4 +1,4 @@
-// src/storage/themePreferenceStorage.ts
+// src/storage/choirThemeStorage.ts
 
 import type { Theme } from '../types/theme';
 import {
@@ -8,20 +8,17 @@ import {
     writeStorageValue,
 } from './appStorage.js';
 
-const normalizeSegment = (value: string): string => value.trim();
+const normalizeChoirCode = (choirCode: string): string => choirCode.trim().toLowerCase();
 
-export const buildThemePreferenceKey = (
-    choirId: string,
-    userId: string,
-): string => buildAppStorageKey(
-    normalizeSegment(choirId),
-    normalizeSegment(userId),
+export const buildChoirThemeKey = (choirCode: string): string => buildAppStorageKey(
     'theme',
+    normalizeChoirCode(choirCode),
 );
 
-const serializeTheme = (theme: Theme): string => {
+const serializeTheme = (choirCode: string, theme: Theme): string => {
     const params = new URLSearchParams();
 
+    params.set('choirCode', normalizeChoirCode(choirCode));
     params.set('id', theme.id);
     params.set('name', theme.name);
     params.set('isDark', String(theme.isDark));
@@ -51,8 +48,9 @@ const serializeTheme = (theme: Theme): string => {
     return params.toString();
 };
 
-const deserializeTheme = (value: string): Theme | null => {
+const deserializeTheme = (value: string, expectedChoirCode: string): Theme | null => {
     const params = new URLSearchParams(value);
+    const storedChoirCode = normalizeChoirCode(params.get('choirCode') ?? '');
     const id = params.get('id')?.trim() ?? '';
     const name = params.get('name')?.trim() ?? '';
     const primaryColor = params.get('primaryColor')?.trim() ?? '';
@@ -67,7 +65,8 @@ const deserializeTheme = (value: string): Theme | null => {
     const borderColor = params.get('borderColor')?.trim() ?? '';
 
     if (
-        !id
+        storedChoirCode !== normalizeChoirCode(expectedChoirCode)
+        || !id
         || !name
         || !primaryColor
         || !accentColor
@@ -103,28 +102,30 @@ const deserializeTheme = (value: string): Theme | null => {
     };
 };
 
-export const readThemePreference = (
-    choirId: string,
-    userId: string,
-): Theme | null => {
-    const storedValue = readStorageValue(buildThemePreferenceKey(choirId, userId));
-    return storedValue ? deserializeTheme(storedValue) : null;
+export const readChoirTheme = (choirCode: string): Theme | null => {
+    const normalizedCode = normalizeChoirCode(choirCode);
+    const storedValue = readStorageValue(buildChoirThemeKey(normalizedCode));
+
+    return storedValue ? deserializeTheme(storedValue, normalizedCode) : null;
 };
 
-export const writeThemePreference = (
-    choirId: string,
-    userId: string,
-    theme: Theme,
-): void => {
+export const writeChoirTheme = (choirCode: string, theme: Theme): void => {
+    const normalizedCode = normalizeChoirCode(choirCode);
+
+    if (!normalizedCode) {
+        return;
+    }
+
     writeStorageValue(
-        buildThemePreferenceKey(choirId, userId),
-        serializeTheme(theme),
+        buildChoirThemeKey(normalizedCode),
+        serializeTheme(normalizedCode, theme),
     );
 };
 
-export const removeThemePreference = (
-    choirId: string,
-    userId: string,
-): void => {
-    removeStorageValue(buildThemePreferenceKey(choirId, userId));
+export const activateCachedChoirTheme = (choirCode: string): Theme | null => (
+    readChoirTheme(choirCode)
+);
+
+export const removeChoirTheme = (choirCode: string): void => {
+    removeStorageValue(buildChoirThemeKey(choirCode));
 };

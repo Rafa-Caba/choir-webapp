@@ -148,7 +148,7 @@ export const updateSelfProfile = async (formData: FormData): Promise<User> => {
     return data.user;
 };
 
-export const updateSelfTheme = async (themeId: string): Promise<User> => {
+export const updateSelfTheme = async (themeId: string | null): Promise<User> => {
     const { data } = await api.put<UserResponse>('/users/me/theme', { themeId });
     return data.user;
 };

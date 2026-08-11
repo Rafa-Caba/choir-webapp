@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { getPublicSettings } from '../../services/public/settings';
 import type { AppSettings } from '../../types/settings';
 import type { PublicChoirMetadata } from '../../types/public';
+import type { Theme } from '../../types/theme';
 import type { PublicResourceStatus } from './index';
 import {
     getPublicResourceError,
@@ -14,6 +15,7 @@ import {
 interface PublicSettingsState {
     settings: AppSettings | null;
     choir: PublicChoirMetadata | null;
+    activeTheme: Theme | null;
     loading: boolean;
     status: PublicResourceStatus;
     loadedChoirCode: string | null;
@@ -28,6 +30,7 @@ let activeController: AbortController | null = null;
 const initialState = {
     settings: null,
     choir: null,
+    activeTheme: null,
     loading: false,
     status: 'idle' as const,
     loadedChoirCode: null,
@@ -65,6 +68,7 @@ export const useSettingsStore = create<PublicSettingsState>((set, get) => ({
             set({
                 settings: response.settings,
                 choir: response.choir,
+                activeTheme: response.activeTheme,
                 loading: false,
                 status: 'ready',
                 loadedChoirCode: normalizedCode,

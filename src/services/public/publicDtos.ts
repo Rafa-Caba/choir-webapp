@@ -15,6 +15,7 @@ export interface PublicChoirDto {
 }
 
 export interface PublicSettingsDto extends PublicEntityDto {
+    readonly activeThemeId?: string | null;
     readonly webTitle: string;
     readonly contactPhone: string;
     readonly logoUrl?: string;
@@ -36,6 +37,7 @@ export interface PublicSettingsDto extends PublicEntityDto {
 export interface PublicSettingsApiResponse {
     readonly choir: PublicChoirDto;
     readonly settings: PublicSettingsDto;
+    readonly activeTheme: PublicThemeDto;
 }
 
 export interface PublicAnnouncementDto extends PublicEntityDto {

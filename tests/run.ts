@@ -48,6 +48,12 @@ import {
     shouldAutoLoadInstruments,
     shouldShowNoInstrumentsState,
 } from '../src/instruments/instrumentLoadState.js';
+import { buildChoirThemeKey } from '../src/storage/choirThemeStorage.js';
+import { buildThemePreferenceKey } from '../src/storage/themePreferenceStorage.js';
+import {
+    resolvePersonalThemeId,
+    shouldUsePersonalAdminTheme,
+} from '../src/theme/themeHierarchy.js';
 
 interface TestCase {
     readonly name: string;
@@ -75,6 +81,44 @@ const assertThrows = (callback: () => void): void => {
 };
 
 const testCases: TestCase[] = [
+    {
+        name: 'global and personal theme storage use separate choir-scoped keys',
+        run: () => {
+            assertEqual(buildChoirThemeKey('EroCras'), 'choir-web:theme:erocras');
+            assertEqual(
+                buildThemePreferenceKey('choir-id', 'user-id'),
+                'choir-web:choir-id:user-id:theme',
+            );
+        },
+    },
+    {
+        name: 'personal admin theme hierarchy excludes SUPER_ADMIN and falls back when unset',
+        run: () => {
+            assertEqual(resolvePersonalThemeId(' personal-theme '), 'personal-theme');
+            assertEqual(resolvePersonalThemeId({
+                id: 'theme-object',
+                name: 'Object theme',
+                isDark: false,
+                primaryColor: '#111111',
+                accentColor: '#222222',
+                backgroundColor: '#ffffff',
+                textColor: '#111111',
+                cardColor: '#ffffff',
+                buttonColor: '#111111',
+                navColor: '#ffffff',
+                buttonTextColor: '#ffffff',
+                secondaryTextColor: '#333333',
+                borderColor: '#dddddd',
+            }), 'theme-object');
+            assertEqual(resolvePersonalThemeId(null), null);
+            assertEqual(shouldUsePersonalAdminTheme('ADMIN', 'theme-id'), true);
+            assertEqual(shouldUsePersonalAdminTheme('EDITOR', 'theme-id'), true);
+            assertEqual(shouldUsePersonalAdminTheme('USER', 'theme-id'), true);
+            assertEqual(shouldUsePersonalAdminTheme('VIEWER', 'theme-id'), true);
+            assertEqual(shouldUsePersonalAdminTheme('SUPER_ADMIN', 'theme-id'), false);
+            assertEqual(shouldUsePersonalAdminTheme('ADMIN', null), false);
+        },
+    },
     {
         name: 'instrument auto-load runs once even when the loaded list is empty',
         run: () => {

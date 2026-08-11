@@ -31,27 +31,52 @@ const requireEntityId = (entity: PublicEntityDto): string => {
     return id;
 };
 
+const mapPublicThemeValue = (item: PublicThemeDto): Theme => ({
+    id: requireEntityId(item),
+    name: item.name,
+    isDark: item.isDark,
+    primaryColor: item.primaryColor,
+    accentColor: item.accentColor,
+    backgroundColor: item.backgroundColor,
+    textColor: item.textColor,
+    cardColor: item.cardColor,
+    buttonColor: item.buttonColor,
+    navColor: item.navColor,
+    buttonTextColor: item.buttonTextColor,
+    secondaryTextColor: item.secondaryTextColor,
+    borderColor: item.borderColor,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+});
+
 export const mapPublicSettings = (
     response: PublicSettingsApiResponse,
-): PublicSettingsResponse => ({
-    choir: {
-        name: response.choir.name,
-        code: response.choir.code,
-        description: response.choir.description ?? '',
-        logoUrl: response.choir.logoUrl ?? '',
-    },
-    settings: {
-        id: requireEntityId(response.settings),
-        choirId: '',
-        webTitle: response.settings.webTitle,
-        contactPhone: response.settings.contactPhone,
-        logoUrl: response.settings.logoUrl ?? '',
-        socials: { ...response.settings.socials },
-        homeLegends: { ...response.settings.homeLegends },
-        history: response.settings.history,
-        updatedAt: response.settings.updatedAt ?? '',
-    },
-});
+): PublicSettingsResponse => {
+    const activeTheme = mapPublicThemeValue(response.activeTheme);
+
+    return {
+        choir: {
+            name: response.choir.name,
+            code: response.choir.code,
+            description: response.choir.description ?? '',
+            logoUrl: response.choir.logoUrl ?? '',
+        },
+        settings: {
+            id: requireEntityId(response.settings),
+            choirId: '',
+            activeThemeId: activeTheme.id,
+            activeTheme,
+            webTitle: response.settings.webTitle,
+            contactPhone: response.settings.contactPhone,
+            logoUrl: response.settings.logoUrl ?? '',
+            socials: { ...response.settings.socials },
+            homeLegends: { ...response.settings.homeLegends },
+            history: response.settings.history,
+            updatedAt: response.settings.updatedAt ?? '',
+        },
+        activeTheme,
+    };
+};
 
 export const mapPublicAnnouncement = (item: PublicAnnouncementDto): Announcement => ({
     id: requireEntityId(item),
@@ -137,23 +162,7 @@ export const mapPublicSong = (item: PublicSongDto): Song => {
     };
 };
 
-export const mapPublicTheme = (item: PublicThemeDto): Theme => ({
-    id: requireEntityId(item),
-    name: item.name,
-    isDark: item.isDark,
-    primaryColor: item.primaryColor,
-    accentColor: item.accentColor,
-    backgroundColor: item.backgroundColor,
-    textColor: item.textColor,
-    cardColor: item.cardColor,
-    buttonColor: item.buttonColor,
-    navColor: item.navColor,
-    buttonTextColor: item.buttonTextColor,
-    secondaryTextColor: item.secondaryTextColor,
-    borderColor: item.borderColor,
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
-});
+export const mapPublicTheme = (item: PublicThemeDto): Theme => mapPublicThemeValue(item);
 
 export const mapPublicInstrument = (item: PublicInstrumentDto): Instrument => ({
     id: requireEntityId(item),
