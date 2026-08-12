@@ -101,9 +101,9 @@ export const createMuiAppTheme = (options: CreateMuiAppThemeOptions = {}): Theme
             MuiAppBar: {
                 styleOverrides: {
                     root: {
-                        backgroundImage:
-                            'linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 92%, #000 8%) 0%, var(--color-primary) 55%, var(--color-accent) 100%)',
-                        color: 'var(--color-button-text)',
+                        backgroundImage: 'none',
+                        backgroundColor: 'var(--color-nav)',
+                        color: 'var(--color-text)',
                     },
                 },
             },

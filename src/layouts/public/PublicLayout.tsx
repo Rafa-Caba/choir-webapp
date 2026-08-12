@@ -417,8 +417,7 @@ const PublicLayout = () => {
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    background:
-                        'linear-gradient(135deg, color-mix(in srgb, var(--color-background) 94%, var(--color-primary) 6%) 0%, var(--color-background) 60%, color-mix(in srgb, var(--color-background) 92%, var(--color-accent) 8%) 100%)',
+                    backgroundColor: 'var(--color-background)',
                     color: 'var(--color-text)',
                 }}
             >
@@ -430,9 +429,9 @@ const PublicLayout = () => {
                         left: 0,
                         right: 0,
                         width: '100%',
-                        background:
-                            'linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 92%, #000 8%) 0%, var(--color-primary) 55%, var(--color-accent) 100%)',
-                        color: 'var(--color-button-text)',
+                        backgroundImage: 'none',
+                        backgroundColor: 'var(--color-nav)',
+                        color: 'var(--color-text)',
                         borderBottom: '1px solid color-mix(in srgb, var(--color-border) 60%, transparent)',
                         boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)',
                         zIndex: (theme: Theme) => theme.zIndex.drawer + 2,
@@ -457,8 +456,8 @@ const PublicLayout = () => {
                                 aria-label="Abrir menú"
                                 onClick={() => setMobileDrawerOpen(true)}
                                 sx={{
-                                    color: 'var(--color-button-text)',
-                                    border: '1px solid color-mix(in srgb, var(--color-button-text) 35%, transparent)',
+                                    color: 'var(--color-text)',
+                                    border: '1px solid color-mix(in srgb, var(--color-border) 80%, transparent)',
                                     borderRadius: 1.5,
                                 }}
                             >
@@ -472,10 +471,10 @@ const PublicLayout = () => {
                             sx={{
                                 width: { xs: 40, md: 46 },
                                 height: { xs: 40, md: 46 },
-                                bgcolor: 'rgba(255, 255, 255, 0.18)',
-                                color: 'var(--color-button-text)',
+                                bgcolor: 'var(--color-card)',
+                                color: 'var(--color-text)',
                                 fontWeight: 950,
-                                border: '1px solid rgba(255, 255, 255, 0.28)',
+                                border: '1px solid var(--color-border)',
                             }}
                         >
                             {compactTitle}
@@ -503,12 +502,12 @@ const PublicLayout = () => {
                                 onClick={() => navigate('/admin', { replace: true })}
                                 sx={{
                                     borderRadius: 1.5,
-                                    color: 'var(--color-button-text)',
-                                    borderColor: 'rgba(255, 255, 255, 0.42)',
+                                    color: 'var(--color-text)',
+                                    borderColor: 'var(--color-border)',
                                     fontWeight: 900,
                                     '&:hover': {
-                                        borderColor: 'rgba(255, 255, 255, 0.72)',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.14)',
+                                        borderColor: 'var(--color-primary)',
+                                        backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
                                     },
                                 }}
                             >
@@ -523,12 +522,12 @@ const PublicLayout = () => {
                                 onClick={() => navigate('/admin')}
                                 sx={{
                                     borderRadius: 1.5,
-                                    color: 'var(--color-button-text)',
-                                    borderColor: 'rgba(255, 255, 255, 0.42)',
+                                    color: 'var(--color-text)',
+                                    borderColor: 'var(--color-border)',
                                     fontWeight: 900,
                                     '&:hover': {
-                                        borderColor: 'rgba(255, 255, 255, 0.72)',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.14)',
+                                        borderColor: 'var(--color-primary)',
+                                        backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
                                     },
                                 }}
                             >
@@ -544,8 +543,8 @@ const PublicLayout = () => {
                                 onClick={() => navigate('/admin', { replace: true })}
                                 sx={{
                                     borderRadius: 1.5,
-                                    color: 'var(--color-button-text)',
-                                    borderColor: 'rgba(255, 255, 255, 0.42)',
+                                    color: 'var(--color-text)',
+                                    borderColor: 'var(--color-border)',
                                     fontWeight: 900,
                                     minWidth: 'auto',
                                     '& .MuiButton-startIcon': {
@@ -568,7 +567,7 @@ const PublicLayout = () => {
                                 width: '100%',
                                 px: 0,
                                 py: 0,
-                                backgroundColor: 'color-mix(in srgb, var(--color-card) 82%, transparent)',
+                                backgroundColor: 'var(--color-card)',
                                 borderTop: '1px solid color-mix(in srgb, var(--color-border) 55%, transparent)',
                                 borderBottom: '1px solid color-mix(in srgb, var(--color-border) 75%, transparent)',
                                 backdropFilter: 'blur(12px)',
@@ -692,7 +691,7 @@ const PublicLayout = () => {
                                     alignSelf: 'start',
                                     p: 1,
                                     borderRadius: 1.5,
-                                    backgroundColor: 'color-mix(in srgb, var(--color-card) 84%, transparent)',
+                                    backgroundColor: 'var(--color-card)',
                                     border: '1px solid var(--color-border)',
                                     color: 'var(--color-text)',
                                     boxShadow: '0 10px 28px rgba(15, 23, 42, 0.06)',
@@ -734,7 +733,7 @@ const PublicLayout = () => {
                                     xs: 0,
                                     sm: 1.5,
                                 },
-                                backgroundColor: 'color-mix(in srgb, var(--color-card) 76%, transparent)',
+                                backgroundColor: 'var(--color-card)',
                                 border: {
                                     xs: 'none',
                                     sm: '1px solid color-mix(in srgb, var(--color-border) 88%, transparent)',
@@ -774,7 +773,7 @@ const PublicLayout = () => {
                                     alignSelf: 'start',
                                     p: 1,
                                     borderRadius: 1.5,
-                                    backgroundColor: 'color-mix(in srgb, var(--color-card) 84%, transparent)',
+                                    backgroundColor: 'var(--color-card)',
                                     border: '1px solid var(--color-border)',
                                     color: 'var(--color-text)',
                                     boxShadow: '0 10px 28px rgba(15, 23, 42, 0.06)',

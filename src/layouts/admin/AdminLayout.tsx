@@ -607,8 +607,7 @@ const AdminLayout = () => {
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    background:
-                        'linear-gradient(135deg, color-mix(in srgb, var(--color-background) 94%, var(--color-primary) 6%) 0%, var(--color-background) 55%, color-mix(in srgb, var(--color-background) 92%, var(--color-accent) 8%) 100%)',
+                    backgroundColor: 'var(--color-background)',
                     color: 'var(--color-text)',
                 }}
             >
@@ -621,9 +620,9 @@ const AdminLayout = () => {
                         right: 0,
                         width: '100%',
                         height: headerHeight,
-                        background:
-                            'linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 92%, #000 8%) 0%, var(--color-primary) 55%, var(--color-accent) 100%)',
-                        color: 'var(--color-button-text)',
+                        backgroundImage: 'none',
+                        backgroundColor: 'var(--color-nav)',
+                        color: 'var(--color-text)',
                         borderBottom: '1px solid color-mix(in srgb, var(--color-border) 60%, transparent)',
                         boxShadow: '0 10px 32px rgba(15, 23, 42, 0.16)',
                         zIndex: (theme: Theme) => theme.zIndex.drawer + 2,
@@ -635,8 +634,8 @@ const AdminLayout = () => {
                                 aria-label="Abrir menú"
                                 onClick={() => setMobileDrawerOpen(true)}
                                 sx={{
-                                    color: 'var(--color-button-text)',
-                                    border: '1px solid color-mix(in srgb, var(--color-button-text) 35%, transparent)',
+                                    color: 'var(--color-text)',
+                                    border: '1px solid color-mix(in srgb, var(--color-border) 80%, transparent)',
                                 }}
                             >
                                 <MenuRoundedIcon />
@@ -674,9 +673,9 @@ const AdminLayout = () => {
                                     sx={{
                                         width: 'fit-content',
                                         maxWidth: { xs: '62vw', md: 'none' },
-                                        color: 'var(--color-button-text)',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.18)',
-                                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                                        color: 'var(--color-text)',
+                                        backgroundColor: 'color-mix(in srgb, var(--color-card) 72%, transparent)',
+                                        border: '1px solid var(--color-border)',
                                         fontWeight: 800,
                                         '& .MuiChip-label': {
                                             overflow: 'hidden',
@@ -695,12 +694,12 @@ const AdminLayout = () => {
                                 onClick={handleReturnToPlatform}
                                 sx={{
                                     display: { xs: 'none', md: 'inline-flex' },
-                                    color: 'var(--color-button-text)',
-                                    borderColor: 'rgba(255, 255, 255, 0.4)',
+                                    color: 'var(--color-text)',
+                                    borderColor: 'var(--color-border)',
                                     fontWeight: 900,
                                     '&:hover': {
-                                        borderColor: 'rgba(255, 255, 255, 0.72)',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                                        borderColor: 'var(--color-primary)',
+                                        backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
                                     },
                                 }}
                             >
@@ -713,7 +712,7 @@ const AdminLayout = () => {
                             sx={{
                                 mt: 0.5,
                                 display: { xs: 'none', sm: 'block' },
-                                color: 'color-mix(in srgb, var(--color-button-text) 88%, transparent)',
+                                color: 'var(--color-text)',
                                 fontWeight: 700,
                                 fontSize: 22,
                             }}
@@ -727,11 +726,11 @@ const AdminLayout = () => {
                                     aria-label="Abrir chat grupal"
                                     onClick={() => navigate('/admin/chat-group')}
                                     sx={{
-                                        color: 'var(--color-button-text)',
-                                        border: '1px solid rgba(255, 255, 255, 0.22)',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                        color: 'var(--color-text)',
+                                        border: '1px solid var(--color-border)',
+                                        backgroundColor: 'color-mix(in srgb, var(--color-card) 72%, transparent)',
                                         '&:hover': {
-                                            backgroundColor: 'rgba(255, 255, 255, 0.18)',
+                                            backgroundColor: 'color-mix(in srgb, var(--color-primary) 14%, var(--color-card) 86%)',
                                         },
                                     }}
                                 >
@@ -1009,13 +1008,13 @@ const AdminLayout = () => {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         gap: 1.5,
-                        backgroundColor: 'var(--color-primary)',
-                        color: 'var(--color-button-text)',
+                        backgroundColor: 'var(--color-nav)',
+                        color: 'var(--color-text)',
                         borderTop: '1px solid var(--color-border)',
                         zIndex: (theme: Theme) => theme.zIndex.drawer + 1,
                     }}
                 >
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: 'var(--color-button-text)' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: 'var(--color-text)' }}>
                         Creada por Rafael Cabanillas - 2022
                     </Typography>
 
@@ -1023,7 +1022,7 @@ const AdminLayout = () => {
                         <Box
                             component="a"
                             href={settings?.socials.facebook || '/'}
-                            sx={{ color: 'var(--color-button-text)', fontSize: 22 }}
+                            sx={{ color: 'var(--color-text)', fontSize: 22 }}
                             aria-label="Facebook"
                         >
                             <FontAwesomeIcon icon={['fab', 'facebook']} />
@@ -1032,7 +1031,7 @@ const AdminLayout = () => {
                         <Box
                             component="a"
                             href={settings?.socials.instagram || '/'}
-                            sx={{ color: 'var(--color-button-text)', fontSize: 22 }}
+                            sx={{ color: 'var(--color-text)', fontSize: 22 }}
                             aria-label="Instagram"
                         >
                             <FontAwesomeIcon icon={['fab', 'instagram']} />
@@ -1041,7 +1040,7 @@ const AdminLayout = () => {
                         <Box
                             component="a"
                             href={settings?.socials.youtube || '/'}
-                            sx={{ color: 'var(--color-button-text)', fontSize: 22 }}
+                            sx={{ color: 'var(--color-text)', fontSize: 22 }}
                             aria-label="YouTube"
                         >
                             <FontAwesomeIcon icon={['fab', 'youtube']} />

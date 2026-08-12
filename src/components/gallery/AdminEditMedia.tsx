@@ -115,6 +115,7 @@ export const AdminEditMedia = () => {
                     display: 'grid',
                     placeItems: 'center',
                     color: 'var(--color-text)',
+                    flexShrink: 0,
                 }}
             >
                 <Box sx={{ textAlign: 'center' }}>
@@ -132,7 +133,8 @@ export const AdminEditMedia = () => {
             component="section"
             sx={{
                 width: '100%',
-                minHeight: '100%',
+                height: '100%',
+                minHeight: 0,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
@@ -152,6 +154,7 @@ export const AdminEditMedia = () => {
                     boxShadow:
                         'inset 0 1px 0 color-mix(in srgb, var(--color-button-text) 14%, transparent), 0 12px 38px rgba(15, 23, 42, 0.06)',
                     color: 'var(--color-text)',
+                    flexShrink: 0,
                 }}
             >
                 <Box
@@ -284,6 +287,14 @@ export const AdminEditMedia = () => {
                         p: '0 !important',
                         m: '0 auto !important',
                         backgroundColor: 'transparent !important',
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                        pr: {
+                            xs: 0.5,
+                            sm: 0.75,
+                        },
+                        pb: 1,
+                        scrollbarGutter: 'stable',
                     }}
                 >
                     <TextField

@@ -1,6 +1,7 @@
 // src/utils/chat/normalizeChatMessage.ts
 
 import type {
+    ChatMediaMetadata,
     ChatMessage,
     MessageType,
     ChatUserSummary,
@@ -10,6 +11,7 @@ import type {
 import type { TipTapContent } from '../../types/announcement';
 import type { JsonObject, JsonValue } from '../../types/json';
 import type {
+    ChatMediaAssetDto,
     ChatMessageDto,
     ChatReactionDto,
     ChatReplyDto,
@@ -33,11 +35,46 @@ const createEmptyContent = (): TipTapContent => ({
     content: [],
 });
 
+const createTextContent = (text: string): TipTapContent => ({
+    type: 'doc',
+    content: [
+        {
+            type: 'paragraph',
+            attrs: { textAlign: 'left' },
+            content: text
+                ? [{ type: 'text', text }]
+                : [],
+        },
+    ],
+});
+
 const isJsonObject = (value: JsonValue | undefined): value is JsonObject => (
     typeof value === 'object' && value !== null && !Array.isArray(value)
 );
 
+const firstNonEmptyString = (
+    ...values: readonly (string | undefined | null)[]
+): string => {
+    for (const value of values) {
+        const normalized = value?.trim() ?? '';
+
+        if (normalized) {
+            return normalized;
+        }
+    }
+
+    return '';
+};
+
 const normalizeContent = (value: JsonValue | undefined): TipTapContent => {
+    if (typeof value === 'string') {
+        return createTextContent(value);
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return createTextContent(String(value));
+    }
+
     if (!isJsonObject(value) || typeof value.type !== 'string') {
         return createEmptyContent();
     }
@@ -56,6 +93,10 @@ const normalizeContent = (value: JsonValue | undefined): TipTapContent => {
 const extractTextFromTiptap = (content: JsonValue | undefined): string => {
     if (typeof content === 'string') {
         return content;
+    }
+
+    if (typeof content === 'number' || typeof content === 'boolean') {
+        return String(content);
     }
 
     if (!isJsonObject(content)) {
@@ -92,9 +133,40 @@ const normalizeUser = (rawUser: ChatUserDto | undefined): ChatUserSummary => ({
     imageUrl: rawUser?.imageUrl?.trim() || '',
 });
 
-const normalizeReplyTo = (rawReply: ChatReplyDto | null | undefined): ReplyPreview | null => {
+const getReplyTypePreview = (
+    type: string | undefined,
+    filename?: string,
+): string => {
+    switch (type) {
+        case 'IMAGE':
+            return '📷 Foto';
+        case 'VIDEO':
+        case 'MEDIA':
+            return '🎥 Video';
+        case 'AUDIO':
+            return '🎤 Nota de voz';
+        case 'FILE':
+            return filename ? `📎 ${filename}` : '📎 Archivo';
+        case 'STICKER':
+            return '✨ Sticker';
+        default:
+            return 'Mensaje original';
+    }
+};
+
+const normalizeReplyTo = (
+    rawReply: ChatReplyDto | string | null | undefined,
+): ReplyPreview | null => {
     if (!rawReply) {
         return null;
+    }
+
+    if (typeof rawReply === 'string') {
+        return {
+            id: rawReply,
+            username: 'usuario',
+            textPreview: 'Mensaje original',
+        };
     }
 
     const id = rawReply.id ?? rawReply._id ?? '';
@@ -105,11 +177,12 @@ const normalizeReplyTo = (rawReply: ChatReplyDto | null | undefined): ReplyPrevi
         'Usuario'
     );
     const content = rawReply.content ?? rawReply.contenido;
+    const contentPreview = rawReply.textPreview ?? extractTextFromTiptap(content);
 
     return {
         id,
         username,
-        textPreview: rawReply.textPreview ?? extractTextFromTiptap(content),
+        textPreview: contentPreview || getReplyTypePreview(rawReply.type, rawReply.filename),
     };
 };
 
@@ -155,28 +228,76 @@ const normalizeMediaAssetId = (
     return value?.id ?? value?._id;
 };
 
+const normalizeMedia = (
+    raw: ChatMediaAssetDto | string | null | undefined,
+    fallbackUrl: string,
+    fallbackFilename: string,
+): ChatMediaMetadata | null => {
+    if (!raw || typeof raw === 'string') {
+        if (!fallbackUrl) {
+            return null;
+        }
+
+        return {
+            id: typeof raw === 'string' ? raw : '',
+            url: fallbackUrl,
+            filename: fallbackFilename,
+            mimeType: '',
+            bytes: 0,
+            format: '',
+            resourceType: '',
+        };
+    }
+
+    return {
+        id: raw.id ?? raw._id ?? '',
+        url: firstNonEmptyString(raw.url, fallbackUrl),
+        filename: firstNonEmptyString(raw.originalName, fallbackFilename),
+        mimeType: raw.mimeType?.trim() ?? '',
+        bytes: typeof raw.bytes === 'number' ? raw.bytes : 0,
+        format: raw.format?.trim() ?? '',
+        resourceType: raw.resourceType?.trim() ?? '',
+    };
+};
+
 export const normalizeChatMessage = (raw: ChatMessageDto): ChatMessage => {
     const createdAt = raw.createdAt ?? new Date().toISOString();
-    const mediaAssetUrl = typeof raw.mediaAssetId === 'object' && raw.mediaAssetId
-        ? raw.mediaAssetId.url
-        : undefined;
+    const messageType = normalizeMessageType(raw.type);
+    const fallbackMediaUrl = firstNonEmptyString(
+        raw.imageUrl,
+        raw.audioUrl,
+        raw.fileUrl,
+    );
+    const fallbackFilename = firstNonEmptyString(raw.filename, 'Archivo adjunto');
+    const media = normalizeMedia(raw.mediaAssetId, fallbackMediaUrl, fallbackFilename);
+    const mediaUrl = firstNonEmptyString(
+        media?.url,
+        messageType === 'IMAGE' ? raw.imageUrl : undefined,
+        messageType === 'AUDIO' ? raw.audioUrl : undefined,
+        raw.fileUrl,
+        raw.imageUrl,
+        raw.audioUrl,
+    );
 
     return {
         id: raw.id ?? raw._id ?? '',
         choirId: raw.choirId ?? null,
         author: normalizeUser(raw.author ?? raw.user),
         content: normalizeContent(raw.content),
-        type: normalizeMessageType(raw.type),
-        fileUrl: raw.fileUrl ?? mediaAssetUrl ?? '',
-        filename: raw.filename ?? (
-            typeof raw.mediaAssetId === 'object' && raw.mediaAssetId
-                ? raw.mediaAssetId.originalName
-                : ''
-        ),
-        imageUrl: raw.imageUrl ?? mediaAssetUrl,
-        audioUrl: raw.audioUrl ?? mediaAssetUrl,
-        imagePublicId: raw.imagePublicId ?? raw.mediaPublicId,
+        type: messageType,
+        fileUrl: ['FILE', 'MEDIA', 'VIDEO'].includes(messageType)
+            ? mediaUrl
+            : firstNonEmptyString(raw.fileUrl),
+        filename: firstNonEmptyString(raw.filename, media?.filename),
+        imageUrl: messageType === 'IMAGE'
+            ? mediaUrl
+            : firstNonEmptyString(raw.imageUrl),
+        audioUrl: messageType === 'AUDIO'
+            ? mediaUrl
+            : firstNonEmptyString(raw.audioUrl),
+        imagePublicId: firstNonEmptyString(raw.imagePublicId, raw.mediaPublicId),
         mediaAssetId: normalizeMediaAssetId(raw.mediaAssetId),
+        media,
         reactions: (raw.reactions ?? []).map(normalizeReaction),
         replyTo: normalizeReplyTo(raw.replyTo),
         createdAt,

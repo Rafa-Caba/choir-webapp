@@ -54,6 +54,7 @@ import {
     resolvePersonalThemeId,
     shouldUsePersonalAdminTheme,
 } from '../src/theme/themeHierarchy.js';
+import { normalizeChatMessage } from '../src/utils/chat/normalizeChatMessage.js';
 
 interface TestCase {
     readonly name: string;
@@ -81,6 +82,73 @@ const assertThrows = (callback: () => void): void => {
 };
 
 const testCases: TestCase[] = [
+    {
+        name: 'chat normalization preserves plain RN text and emoji content',
+        run: () => {
+            const normalized = normalizeChatMessage({
+                _id: 'message-text',
+                author: {
+                    _id: 'user-carolina',
+                    name: 'Carolina D.',
+                    username: 'carolina',
+                },
+                content: 'Hola 🥰',
+                type: 'TEXT',
+                createdAt: '2026-08-11T21:30:00.000Z',
+            });
+
+            assertEqual(normalized.type, 'TEXT');
+            assertEqual(JSON.stringify(normalized.content).includes('Hola 🥰'), true);
+        },
+    },
+    {
+        name: 'chat normalization resolves populated media when legacy URL fields are empty',
+        run: () => {
+            const normalized = normalizeChatMessage({
+                _id: 'message-image',
+                author: {
+                    _id: 'user-carolina',
+                    name: 'Carolina D.',
+                    username: 'carolina',
+                },
+                content: '',
+                type: 'IMAGE',
+                fileUrl: '',
+                imageUrl: '',
+                mediaAssetId: {
+                    _id: 'asset-image',
+                    url: 'https://cdn.example.com/chat/photo.jpg',
+                    originalName: 'photo.jpg',
+                    mimeType: 'image/jpeg',
+                    bytes: 1234,
+                    format: 'jpg',
+                    resourceType: 'image',
+                },
+            });
+
+            assertEqual(normalized.imageUrl, 'https://cdn.example.com/chat/photo.jpg');
+            assertEqual(normalized.media?.url, 'https://cdn.example.com/chat/photo.jpg');
+            assertEqual(normalized.media?.filename, 'photo.jpg');
+        },
+    },
+    {
+        name: 'chat normalization preserves stickers sent as plain strings',
+        run: () => {
+            const normalized = normalizeChatMessage({
+                _id: 'message-sticker',
+                author: {
+                    _id: 'user-rafael',
+                    name: 'Rafael',
+                    username: 'rafael',
+                },
+                content: '😇',
+                type: 'STICKER',
+            });
+
+            assertEqual(normalized.type, 'STICKER');
+            assertEqual(JSON.stringify(normalized.content).includes('😇'), true);
+        },
+    },
     {
         name: 'global and personal theme storage use separate choir-scoped keys',
         run: () => {

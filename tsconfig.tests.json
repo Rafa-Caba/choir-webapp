@@ -36,6 +36,7 @@
     "src/types/chat.ts",
     "src/types/json.ts",
     "src/services/admin/chatDtos.ts",
+    "src/utils/chat/normalizeChatMessage.ts",
     "src/config/envParsing.ts",
     "src/routing/index.ts",
     "src/routing/adminNavigation.ts",

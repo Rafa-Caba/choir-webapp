@@ -186,6 +186,61 @@ if (!authProviderContents.includes('getAdminSettings()')) {
     failures.push('AuthProvider.tsx: admin theme hierarchy must fall back to Settings.activeThemeId');
 }
 
+
+const chatNormalizerContents = readFileSync(
+    join(root, 'src/utils/chat/normalizeChatMessage.ts'),
+    'utf8',
+);
+if (!chatNormalizerContents.includes("typeof value === 'string'")) {
+    failures.push('normalizeChatMessage.ts: RN string chat content must be preserved');
+}
+if (!chatNormalizerContents.includes('firstNonEmptyString')) {
+    failures.push('normalizeChatMessage.ts: media URL normalization must ignore empty legacy URL fields');
+}
+
+const chatBubbleContents = readFileSync(
+    join(root, 'src/components/chat/ChatBubble.tsx'),
+    'utf8',
+);
+if (!chatBubbleContents.includes("msg.type === 'STICKER'")) {
+    failures.push('ChatBubble.tsx: STICKER messages require a dedicated renderer');
+}
+if (!chatBubbleContents.includes('getMessageMediaUrl')) {
+    failures.push('ChatBubble.tsx: media messages must resolve the canonical media URL');
+}
+
+const galleryFormFiles = [
+    'src/components/gallery/AdminNewMedia.tsx',
+    'src/components/gallery/AdminEditMedia.tsx',
+];
+for (const galleryFormFile of galleryFormFiles) {
+    const contents = readFileSync(join(root, galleryFormFile), 'utf8');
+
+    if (!contents.includes("overflowY: 'auto'")) {
+        failures.push(`${galleryFormFile}: the mobile form card must scroll independently`);
+    }
+}
+
+const themeSurfaceFiles = [
+    'src/layouts/admin/AdminLayout.tsx',
+    'src/layouts/public/PublicLayout.tsx',
+];
+for (const themeSurfaceFile of themeSurfaceFiles) {
+    const contents = readFileSync(join(root, themeSurfaceFile), 'utf8');
+
+    if (!contents.includes("backgroundColor: 'var(--color-nav)'")) {
+        failures.push(`${themeSurfaceFile}: header/footer surfaces must consume the semantic nav theme color`);
+    }
+}
+
+const globalStylesContents = readFileSync(
+    join(root, 'src/assets/styles/base/_general.scss'),
+    'utf8',
+);
+if (!globalStylesContents.includes('.MuiMenu-paper')) {
+    failures.push('_general.scss: MUI portal menus must inherit the active choir theme');
+}
+
 const targetStorePath = join(root, 'src/store/platform/useTargetChoirStore.ts');
 const targetStoreContents = readFileSync(targetStorePath, 'utf8');
 

@@ -31,6 +31,7 @@ import { EmojiFloat } from './EmojiFloat';
 import { obtenerIconoArchivo } from '../../utils/functionsFilesNames';
 import { useAuth } from '../../context/AuthContext';
 import { formatName } from '../../utils';
+import { getTextFromTipTapJSON } from '../../utils/handleTextTipTap';
 import { ChatReactions } from './ChatReactions';
 
 interface Props {
@@ -62,6 +63,33 @@ const getMessageTimeLabel = (message: ChatMessage): string => {
         console.warn('Invalid createdAt in ChatBubble:', message.id, message.createdAt, error);
         return '';
     }
+};
+
+
+const getMessageMediaUrl = (message: ChatMessage): string => (
+    message.media?.url?.trim()
+    || message.imageUrl?.trim()
+    || message.audioUrl?.trim()
+    || message.fileUrl?.trim()
+    || ''
+);
+
+const getRenderableMessageType = (message: ChatMessage): ChatMessage['type'] => {
+    if (message.type !== 'MEDIA') {
+        return message.type;
+    }
+
+    const mimeType = message.media?.mimeType ?? '';
+
+    if (mimeType.startsWith('audio/')) {
+        return 'AUDIO';
+    }
+
+    if (mimeType.startsWith('image/')) {
+        return 'IMAGE';
+    }
+
+    return 'VIDEO';
 };
 
 const getReactionUserId = (reaction: ChatMessage['reactions'][number]): string => {
@@ -104,6 +132,10 @@ export const ChatBubble = ({
     const timeLabel = getMessageTimeLabel(msg);
     const shouldShowReactions = showMobileReaction || hasReacted || Boolean(msg.reactions && msg.reactions.length > 0);
     const hasReplyPreview = Boolean(replyPreview);
+    const messageMediaUrl = getMessageMediaUrl(msg);
+    const renderType = getRenderableMessageType(msg);
+    const messageText = getTextFromTipTapJSON(msg.content, 10_000).trim();
+    const hasMessageText = messageText.length > 0;
 
     const handleEmojiSelect = async (emoji: string) => {
         setFloatingEmoji(emoji);
@@ -329,10 +361,10 @@ export const ChatBubble = ({
                                 </Box>
                             )}
 
-                            {msg.type === 'IMAGE' && msg.fileUrl && (
+                            {renderType === 'IMAGE' && messageMediaUrl && (
                                 <Button
                                     type="button"
-                                    onClick={() => onImageClick(msg.fileUrl || '')}
+                                    onClick={() => onImageClick(messageMediaUrl)}
                                     sx={{
                                         p: 0,
                                         minWidth: 0,
@@ -344,7 +376,7 @@ export const ChatBubble = ({
                                 >
                                     <Box
                                         component="img"
-                                        src={msg.fileUrl}
+                                        src={messageMediaUrl}
                                         alt={msg.filename || 'Imagen del mensaje'}
                                         sx={{
                                             width: 180,
@@ -359,13 +391,13 @@ export const ChatBubble = ({
                                 </Button>
                             )}
 
-                            {msg.type === 'VIDEO' && msg.fileUrl && (
+                            {renderType === 'VIDEO' && messageMediaUrl && (
                                 <Button
                                     type="button"
                                     onClick={(event) => {
                                         event.preventDefault();
                                         event.stopPropagation();
-                                        onPreviewClick('video', msg.fileUrl || '', msg.filename);
+                                        onPreviewClick('video', messageMediaUrl, msg.filename);
                                     }}
                                     sx={{
                                         p: 0,
@@ -393,7 +425,7 @@ export const ChatBubble = ({
                                     >
                                         <Box
                                             component="video"
-                                            src={msg.fileUrl}
+                                            src={messageMediaUrl}
                                             sx={{
                                                 width: '100%',
                                                 height: '100%',
@@ -430,7 +462,7 @@ export const ChatBubble = ({
                                 </Button>
                             )}
 
-                            {msg.type === 'AUDIO' && msg.fileUrl && (
+                            {renderType === 'AUDIO' && messageMediaUrl && (
                                 <Paper
                                     elevation={0}
                                     sx={{
@@ -445,7 +477,7 @@ export const ChatBubble = ({
                                     <Box
                                         component="audio"
                                         controls
-                                        src={msg.fileUrl}
+                                        src={messageMediaUrl}
                                         sx={{
                                             width: {
                                                 xs: 230,
@@ -475,13 +507,13 @@ export const ChatBubble = ({
                                 </Paper>
                             )}
 
-                            {msg.type === 'FILE' && msg.fileUrl && (
+                            {renderType === 'FILE' && messageMediaUrl && (
                                 <Button
                                     type="button"
                                     onClick={(event) => {
                                         event.preventDefault();
                                         event.stopPropagation();
-                                        onPreviewClick('file', msg.fileUrl || '', msg.filename);
+                                        onPreviewClick('file', messageMediaUrl, msg.filename);
                                     }}
                                     sx={{
                                         p: 1,
@@ -533,10 +565,25 @@ export const ChatBubble = ({
                                 </Button>
                             )}
 
-                            {msg.content && (
+                            {msg.type === 'STICKER' && (
+                                <Typography
+                                    component="div"
+                                    sx={{
+                                        py: 0.25,
+                                        px: 0.5,
+                                        fontSize: { xs: '3rem', sm: '3.5rem' },
+                                        lineHeight: 1.1,
+                                        textAlign: 'center',
+                                    }}
+                                >
+                                    {messageText || '✨'}
+                                </Typography>
+                            )}
+
+                            {msg.type !== 'STICKER' && hasMessageText && (
                                 <Box
                                     sx={{
-                                        mt: msg.fileUrl ? 0.75 : 0,
+                                        mt: messageMediaUrl ? 0.75 : 0,
                                         display: 'inline-block',
                                         width: 'auto',
                                         maxWidth: '100%',

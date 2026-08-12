@@ -27,6 +27,9 @@ export interface ChatReplyDto {
     readonly textPreview?: string;
     readonly content?: JsonValue;
     readonly contenido?: JsonValue;
+    readonly type?: string;
+    readonly filename?: string;
+    readonly mediaAssetId?: ChatMediaAssetDto | string | null;
 }
 
 export interface ChatMediaAssetDto {
@@ -35,6 +38,8 @@ export interface ChatMediaAssetDto {
     readonly url?: string;
     readonly originalName?: string;
     readonly mimeType?: string;
+    readonly bytes?: number;
+    readonly format?: string;
     readonly resourceType?: string;
 }
 
@@ -54,7 +59,7 @@ export interface ChatMessageDto {
     readonly mediaPublicId?: string;
     readonly mediaAssetId?: ChatMediaAssetDto | string | null;
     readonly reactions?: readonly ChatReactionDto[];
-    readonly replyTo?: ChatReplyDto | null;
+    readonly replyTo?: ChatReplyDto | string | null;
     readonly createdAt?: string;
     readonly updatedAt?: string;
 }

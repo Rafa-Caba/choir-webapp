@@ -24,6 +24,16 @@ export interface ReplyPreview {
     textPreview: string;
 }
 
+export interface ChatMediaMetadata {
+    id: string;
+    url: string;
+    filename: string;
+    mimeType: string;
+    bytes: number;
+    format: string;
+    resourceType: string;
+}
+
 export interface ChatMessage {
     id: string;
     choirId?: string | null;
@@ -36,6 +46,7 @@ export interface ChatMessage {
     audioUrl?: string;
     imagePublicId?: string;
     mediaAssetId?: string;
+    media?: ChatMediaMetadata | null;
     reactions: MessageReaction[];
     replyTo?: ReplyPreview | null;
     createdAt: string;
