@@ -386,6 +386,7 @@ export const AdminEditAnnouncement = () => {
                                 value={formData.title}
                                 onChange={handleTextChange}
                                 disabled={loading}
+                                style={{ marginTop: 5 }}
                                 required
                             />
 

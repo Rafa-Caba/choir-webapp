@@ -444,6 +444,7 @@ export const AdminInstrumentForm = () => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 disabled={loading}
+                                style={{ marginTop: 5 }}
                                 required
                             />
 

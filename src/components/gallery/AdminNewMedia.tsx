@@ -277,6 +277,7 @@ export const AdminNewMedia = () => {
                         onChange={handleChange}
                         placeholder="Título de la imagen"
                         disabled={loading}
+                        style={{ marginTop: 5 }}
                         required
                     />
 

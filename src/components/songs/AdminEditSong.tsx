@@ -358,6 +358,7 @@ export const AdminEditSong = () => {
                         onChange={(event) => setTitle(event.target.value)}
                         placeholder="Título"
                         disabled={isSaving}
+                        style={{ marginTop: 5 }}
                         required
                     />
 

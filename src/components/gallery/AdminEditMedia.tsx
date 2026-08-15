@@ -304,6 +304,7 @@ export const AdminEditMedia = () => {
                         onChange={(event) => setTitle(event.target.value)}
                         placeholder="Título de la imagen"
                         disabled={loading}
+                        style={{ marginTop: 5 }}
                         required
                     />
 

@@ -443,6 +443,7 @@ export const EditMemberForm = () => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 disabled={loading}
+                                style={{ marginTop: 5 }}
                                 required
                             />
 

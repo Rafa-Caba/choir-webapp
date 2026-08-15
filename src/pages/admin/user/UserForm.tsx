@@ -509,6 +509,7 @@ export const UserForm = ({
                                         md: 'repeat(2, minmax(0, 1fr))',
                                     },
                                     gap: 1.5,
+                                    paddingTop: 0.7
                                 }}
                             >
                                 <TextField

@@ -396,6 +396,7 @@ export const AdminNewTheme = () => {
                                         md: 'minmax(0, 1fr) 240px',
                                     },
                                     gap: 1.5,
+                                    paddingTop: 0.7
                                 }}
                             >
                                 <TextField

@@ -409,6 +409,7 @@ export const NewMemberForm = () => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 disabled={loading}
+                                style={{ marginTop: 5 }}
                                 required
                             />
 
